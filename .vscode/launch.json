@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'rust-ui'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=rust-ui",
+                    "--package=rust-ui"
+                ],
+                "filter": {
+                    "name": "rust-ui",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
