@@ -34,14 +34,26 @@ fn main() {
         (Length::FILL, Length::FILL),
         Color::LIGHTGRAY,
     );
+    let div3 = Div::new(
+        Rc::new(RefCell::new(Text::new("Another div.", 32))),
+        (Length::FIT, Length::FIT),
+        Color::DARKGRAY,
+    );
 
     let row = Layout::new(
-        vec![div1, div2],
+        vec![div2, div3],
         (Length::FILL, Length::FILL),
         Color::RED,
         Direction::Row,
     );
-    let mut root = Root::new(row, (800, 600));
+
+    let col = Layout::new(
+        vec![div1, row],
+        (Length::FILL, Length::FILL),
+        Color::RED,
+        Direction::Column,
+    );
+    let mut root = Root::new(col, (800, 600));
     root.pass_1((0, 0));
     root.pass_2((0, 0));
     root.debug_dims();
