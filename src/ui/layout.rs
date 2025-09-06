@@ -14,6 +14,7 @@ pub struct Layout {
     // Padding (top, right, bottom, left)
     pub padding: (i32, i32, i32, i32),
     pub align: Alignment,
+    pub gap: i32,
     pub dbg_name: String,
 }
 
@@ -25,6 +26,7 @@ impl Layout {
         direction: Direction,
         align: Alignment,
         padding: (i32, i32, i32, i32),
+        gap: i32,
     ) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             children,
@@ -35,6 +37,7 @@ impl Layout {
             direction,
             align,
             padding,
+            gap,
             dbg_name: "".into(),
         }))
     }
@@ -74,7 +77,8 @@ impl Base for Layout {
                 Direction::Row => {
                     let child_width = (self.draw_dim.0 / self.children.len() as i32)
                         - self.padding.0
-                        - self.padding.2;
+                        - self.padding.2
+                        - (self.gap * ((self.children.len() as i32) - 1));
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.borrow_mut().set_dim((child_width, child_height));
                     child.borrow_mut().pass_1((child_width, child_height));
@@ -82,7 +86,8 @@ impl Base for Layout {
                 Direction::Column => {
                     let child_height = (self.draw_dim.1 / self.children.len() as i32)
                         - self.padding.1
-                        - self.padding.3;
+                        - self.padding.3
+                        - (self.gap * ((self.children.len() as i32) - 1));
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     child.borrow_mut().set_dim((child_width, child_height));
                     child.borrow_mut().pass_1((child_width, child_height));
@@ -100,8 +105,8 @@ impl Base for Layout {
             child.borrow_mut().pass_2(next_pos);
             let (child_width, child_height) = child.borrow().get_draw_dim();
             match self.direction {
-                Direction::Row => next_pos.0 += child_width,
-                Direction::Column => next_pos.1 += child_height,
+                Direction::Row => next_pos.0 += child_width + self.gap,
+                Direction::Column => next_pos.1 += child_height + self.gap,
             }
         }
     }
