@@ -4,6 +4,7 @@ use raylib::{color::Color, prelude::RaylibDraw};
 
 use crate::ui::common::{Alignment, Base, Direction, Length, tabbed_print};
 
+#[derive(Clone)]
 pub struct Layout {
     pub children: Vec<Rc<RefCell<dyn Base>>>,
     pub dim: (Length, Length),
@@ -16,6 +17,65 @@ pub struct Layout {
     pub align: Alignment,
     pub gap: i32,
     pub dbg_name: String,
+}
+
+#[derive(Clone)]
+pub struct LayoutProps {
+    layout: Layout
+}
+
+impl LayoutProps {
+    pub fn new() -> Self {
+        Self {
+            layout: Layout {
+                children: vec![],
+                dim: (Length::FIT, Length::FIT),
+                draw_dim: (0, 0),
+                pos: (0, 0),
+                bg_color: Color::WHITE,
+                direction: Direction::Column,
+                align: Alignment::Start,
+                padding: (0, 0, 0, 0),
+                gap: 0,
+                dbg_name: "".into(),
+            },
+        }
+    }
+    pub fn children(mut self, children: Vec<Rc<RefCell<dyn Base>>>) -> Self {
+        self.layout.children = children;
+        self
+    }
+    pub fn dim(mut self, dim: (Length, Length)) -> Self {
+        self.layout.dim = dim;
+        self
+    }
+    pub fn bg_color(mut self, color: Color) -> Self {
+        self.layout.bg_color = color;
+        self
+    }
+    pub fn direction(mut self, direction: Direction) -> Self {
+        self.layout.direction = direction;
+        self
+    }
+    pub fn align(mut self, align: Alignment) -> Self {
+        self.layout.align = align;
+        self
+    }
+    pub fn padding(mut self, padding: (i32, i32, i32, i32)) -> Self {
+        self.layout.padding = padding;
+        self
+    }
+    pub fn gap(mut self, gap: i32) -> Self {
+        self.layout.gap = gap;
+        self
+    }
+    pub fn dbg_name(mut self, name: &str) -> Self {
+        self.layout.dbg_name = name.into();
+        self
+    }
+    pub fn build(&self) -> Rc<RefCell<Layout>> {
+        Rc::new(RefCell::new(self.layout.clone()))
+    }
 }
 
 impl Layout {
@@ -43,6 +103,9 @@ impl Layout {
     }
     pub fn set_dbg_name(&mut self, name: &str) {
         self.dbg_name = name.into();
+    }
+    pub fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>) {
+        self.children = children;
     }
 }
 
@@ -72,22 +135,19 @@ impl Base for Layout {
         self.draw_dim
     }
     fn pass_1(&mut self, parent_draw_dim: (i32, i32)) {
+        let child_len = self.children.len() as i32;
         for child in self.children.iter() {
             match self.direction {
                 Direction::Row => {
-                    let child_width = (self.draw_dim.0 / self.children.len() as i32)
-                        - self.padding.0
-                        - self.padding.2
-                        - (self.gap * ((self.children.len() as i32) - 1));
+                    let allowed_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
+                    let child_width = (allowed_width - (self.gap * (child_len - 1))) / child_len;
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.borrow_mut().set_dim((child_width, child_height));
                     child.borrow_mut().pass_1((child_width, child_height));
                 }
                 Direction::Column => {
-                    let child_height = (self.draw_dim.1 / self.children.len() as i32)
-                        - self.padding.1
-                        - self.padding.3
-                        - (self.gap * ((self.children.len() as i32) - 1));
+                    let allowed_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
+                    let child_height = (allowed_height - (self.gap * (child_len - 1))) / child_len;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     child.borrow_mut().set_dim((child_width, child_height));
                     child.borrow_mut().pass_1((child_width, child_height));

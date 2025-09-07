@@ -1,6 +1,6 @@
 use crate::ui::common::*;
 use raylib::prelude::*;
-use std::ffi::CString;
+use std::{cell::RefCell, ffi::CString, rc::Rc};
 
 pub struct Text {
     pub content: String,
@@ -55,11 +55,11 @@ impl Base for Text {
 }
 
 impl Text {
-    pub fn new(content: &str, font_size: i32) -> Self {
-        Self {
+    pub fn new(content: &str, font_size: i32) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
             content: content.to_string(),
             font_size,
             pos: (0, 0),
-        }
+        }))
     }
 }

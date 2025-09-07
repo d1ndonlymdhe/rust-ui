@@ -8,11 +8,13 @@ pub enum Length {
     FIXED(i32),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
     Row,
     Column,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Alignment {
     Start,
     Center,
