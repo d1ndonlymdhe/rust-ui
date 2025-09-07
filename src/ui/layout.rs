@@ -29,11 +29,11 @@ impl LayoutProps {
         Self {
             layout: Layout {
                 children: vec![],
-                dim: (Length::FIT, Length::FIT),
+                dim: (Length::FILL, Length::FILL),
                 draw_dim: (0, 0),
                 pos: (0, 0),
                 bg_color: Color::WHITE,
-                direction: Direction::Column,
+                direction: Direction::Row,
                 align: Alignment::Start,
                 padding: (0, 0, 0, 0),
                 gap: 0,
@@ -79,33 +79,11 @@ impl LayoutProps {
 }
 
 impl Layout {
-    pub fn new(
-        children: Vec<Rc<RefCell<dyn Base>>>,
-        dim: (Length, Length),
-        bg_color: Color,
-        direction: Direction,
-        align: Alignment,
-        padding: (i32, i32, i32, i32),
-        gap: i32,
-    ) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Self {
-            children,
-            dim,
-            draw_dim: (0, 0),
-            pos: (0, 0),
-            bg_color,
-            direction,
-            align,
-            padding,
-            gap,
-            dbg_name: "".into(),
-        }))
+    pub fn get_row_builder() -> LayoutProps{
+        LayoutProps::new()
     }
-    pub fn set_dbg_name(&mut self, name: &str) {
-        self.dbg_name = name.into();
-    }
-    pub fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>) {
-        self.children = children;
+    pub fn get_col_builder() -> LayoutProps{
+        LayoutProps::new().direction(Direction::Column)
     }
 }
 
