@@ -43,6 +43,9 @@ impl Base for Root {
         self.child.borrow().debug_dims(depth + 1);
         tabbed_print("</root>", depth);
     }
+    fn get_flex(&self) -> f32 {
+        1.0
+    }
 }
 
 impl Root {

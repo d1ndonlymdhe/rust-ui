@@ -21,7 +21,7 @@ fn main() {
         .size(1000, 1000)
         .title("Rust UI Example")
         .build();
-    let el = make_spiral(0, 10);
+    let el = test();
     let mut root = Root::new(el, (1000, 1000));
     root.pass_1((0, 0));
     root.pass_2((0, 0));
@@ -31,6 +31,53 @@ fn main() {
         d.clear_background(Color::YELLOW);
         root.draw(&mut d);
     }
+}
+
+fn test() -> Rc<RefCell<dyn Base>> {
+    let text1 = Text::new("Hello", 24);
+    let text2 = Text::new("World!", 24);
+    let text3 = Text::new("This is a test.", 24);
+    let text4 = Text::new("Of the emergency", 24);
+    let text5 = Text::new("Broadcast system.", 24);
+
+    let row1 = Layout::get_row_builder()
+        .children(vec![text1, text2])
+        .bg_color(Color::DARKGRAY)
+        .padding((10, 10, 10, 10))
+        .gap(10)
+        .flex(2.0)
+        .build();
+
+    let boxes = vec![text3, text4, text5]
+        .iter()
+        .enumerate()
+        .map(|(i, t)| {
+            Layout::get_row_builder()
+                .children(vec![t.clone()])
+                .bg_color(Color::BLUE)
+                // .padding((5, 5, 5, 5))
+                // .gap(5)
+                // .flex((3) as f32) // Example flex value
+                .build() as Rc<RefCell<dyn Base>>
+        })
+        .collect::<Vec<_>>();
+
+    let row2 = Layout::get_row_builder()
+        .children(boxes)
+        .bg_color(Color::RED)
+        .padding((10, 10, 10, 10))
+        .gap(10)
+        .flex(1.0)
+        .build();
+
+    let col = Layout::get_col_builder()
+        .children(vec![row1, row2])
+        .bg_color(Color::GRAY)
+        .padding((20, 20, 20, 20))
+        .gap(20)
+        .build();
+
+    col
 }
 
 fn make_spiral(curr_depth: usize, max_depth: usize) -> Rc<RefCell<dyn Base>> {
@@ -67,10 +114,7 @@ fn make_spiral(curr_depth: usize, max_depth: usize) -> Rc<RefCell<dyn Base>> {
             }
             c
         };
-        return row_builder
-            .clone()
-            .children(children)
-            .build();
+        return row_builder.clone().children(children).build();
     } else {
         let col_child = row_builder.clone().bg_color(Color::LIME);
         let children = {

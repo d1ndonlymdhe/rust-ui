@@ -17,11 +17,12 @@ pub struct Layout {
     pub align: Alignment,
     pub gap: i32,
     pub dbg_name: String,
+    pub flex: f32,
 }
 
 #[derive(Clone)]
 pub struct LayoutProps {
-    layout: Layout
+    layout: Layout,
 }
 
 impl LayoutProps {
@@ -38,6 +39,7 @@ impl LayoutProps {
                 padding: (0, 0, 0, 0),
                 gap: 0,
                 dbg_name: "".into(),
+                flex: 1.0,
             },
         }
     }
@@ -73,16 +75,20 @@ impl LayoutProps {
         self.layout.dbg_name = name.into();
         self
     }
+    pub fn flex(mut self, flex: f32) -> Self {
+        self.layout.flex = flex;
+        self
+    }
     pub fn build(&self) -> Rc<RefCell<Layout>> {
         Rc::new(RefCell::new(self.layout.clone()))
     }
 }
 
 impl Layout {
-    pub fn get_row_builder() -> LayoutProps{
+    pub fn get_row_builder() -> LayoutProps {
         LayoutProps::new()
     }
-    pub fn get_col_builder() -> LayoutProps{
+    pub fn get_col_builder() -> LayoutProps {
         LayoutProps::new().direction(Direction::Column)
     }
 }
@@ -114,18 +120,29 @@ impl Base for Layout {
     }
     fn pass_1(&mut self, parent_draw_dim: (i32, i32)) {
         let child_len = self.children.len() as i32;
+        let total_flex = self
+            .children
+            .iter()
+            .map(|child| child.borrow().get_flex())
+            .sum::<f32>();
         for child in self.children.iter() {
+            let flex = child.borrow().get_flex();
             match self.direction {
                 Direction::Row => {
                     let allowed_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
-                    let child_width = (allowed_width - (self.gap * (child_len - 1))) / child_len;
+                    let allowed_width = allowed_width - (self.gap * (child_len - 1));
+                    let child_width = f32::round(flex * (allowed_width as f32 / total_flex)) as i32;
+                    // let child_width =
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.borrow_mut().set_dim((child_width, child_height));
                     child.borrow_mut().pass_1((child_width, child_height));
                 }
                 Direction::Column => {
                     let allowed_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
-                    let child_height = (allowed_height - (self.gap * (child_len - 1))) / child_len;
+                    let allowed_height = allowed_height - (self.gap * (child_len - 1));
+                    let child_height =
+                        f32::round(flex * (allowed_height as f32 / total_flex)) as i32;
+                    // let child_height = (allowed_height - (self.gap * (child_len - 1))) / child_len;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     child.borrow_mut().set_dim((child_width, child_height));
                     child.borrow_mut().pass_1((child_width, child_height));
@@ -147,6 +164,9 @@ impl Base for Layout {
                 Direction::Column => next_pos.1 += child_height + self.gap,
             }
         }
+    }
+    fn get_flex(&self) -> f32 {
+        self.flex
     }
     fn debug_dims(&self, depth: usize) {
         tabbed_print(

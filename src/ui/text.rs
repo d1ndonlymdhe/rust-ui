@@ -52,6 +52,9 @@ impl Base for Text {
         tabbed_print(&self.content, depth + 1);
         tabbed_print("</text>", depth);
     }
+    fn get_flex(&self) -> f32 {
+        1.0
+    }
 }
 
 impl Text {

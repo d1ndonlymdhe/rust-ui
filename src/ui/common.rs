@@ -28,6 +28,7 @@ pub trait Base {
     fn get_draw_dim(&self) -> (i32, i32);
     fn pass_1(&mut self, parent_draw_dim: (i32, i32));
     fn pass_2(&mut self, parent_pos: (i32, i32));
+    fn get_flex(&self) -> f32;
     fn debug_dims(&self, depth: usize);
 }
 
