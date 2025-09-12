@@ -22,7 +22,22 @@ fn main() {
         .title("Rust UI Example")
         .build();
     let el = test();
+
+    let el2 = Layout::get_row_builder()
+        .children(vec![
+            Layout::get_row_builder()
+                .children(vec![Text::new("Hello", 24)])
+                .bg_color(Color::LIGHTBLUE)
+                .dim((Length::FIT, Length::FIT))
+                .build(),
+        ])
+        .bg_color(Color::DARKGRAY)
+        .dim((Length::FIT, Length::FIT))
+        .padding((20, 20, 20, 20))
+        .build();
+
     let mut root = Root::new(el, (1000, 1000));
+
     root.pass_1((0, 0));
     root.pass_2((0, 0));
     root.debug_dims(0);
@@ -55,7 +70,8 @@ fn test() -> Rc<RefCell<dyn Base>> {
             Layout::get_row_builder()
                 .children(vec![t.clone()])
                 .bg_color(Color::BLUE)
-                // .padding((5, 5, 5, 5))
+                .dim((Length::FIT, Length::FIT))
+                .padding((5, 5, 5, 5))
                 // .gap(5)
                 // .flex((3) as f32) // Example flex value
                 .build() as Rc<RefCell<dyn Base>>
@@ -68,6 +84,8 @@ fn test() -> Rc<RefCell<dyn Base>> {
         .padding((10, 10, 10, 10))
         .gap(10)
         .flex(1.0)
+        .main_align(ui::common::Alignment::Center)
+        .cross_align(ui::common::Alignment::Center)
         .build();
 
     let col = Layout::get_col_builder()
