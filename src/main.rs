@@ -45,6 +45,7 @@ fn main() {
         let mut d = rl.begin_drawing(&thread);
         d.clear_background(Color::YELLOW);
         root.draw(&mut d);
+        // draw_grid(&mut d, 1000, 1000, 50);
     }
 }
 
@@ -70,28 +71,28 @@ fn test() -> Rc<RefCell<dyn Base>> {
             Layout::get_row_builder()
                 .children(vec![t.clone()])
                 .bg_color(Color::BLUE)
-                .dim((Length::FIT, Length::FIT))
+                .dim((Length::FIT, Length::FILL))
                 .padding((5, 5, 5, 5))
-                // .gap(5)
-                // .flex((3) as f32) // Example flex value
+                .gap(5)
+                .flex((i + 1) as f32) // Example flex value
                 .build() as Rc<RefCell<dyn Base>>
         })
         .collect::<Vec<_>>();
 
-    let row2 = Layout::get_row_builder()
+    let row2 = Layout::get_col_builder()
         .children(boxes)
         .bg_color(Color::RED)
         .padding((10, 10, 10, 10))
         .gap(10)
         .flex(1.0)
-        .main_align(ui::common::Alignment::Center)
+        .main_align(ui::common::Alignment::Start)
         .cross_align(ui::common::Alignment::Center)
         .build();
 
     let col = Layout::get_col_builder()
         .children(vec![row1, row2])
         .bg_color(Color::GRAY)
-        .padding((20, 20, 20, 20))
+        .padding((20, 20, 50, 20))
         .gap(20)
         .build();
 
@@ -156,5 +157,18 @@ fn make_spiral(curr_depth: usize, max_depth: usize) -> Rc<RefCell<dyn Base>> {
             .bg_color(Color::new(0, 255, 0, 255))
             .dim((Length::FILL, Length::FILL))
             .build();
+    }
+}
+
+fn draw_grid(draw_handle: &mut RaylibDrawHandle, max_x: i32, max_y: i32, gap: i32) {
+    let mut x = 0;
+    let mut y = 0;
+    while x < max_x {
+        draw_handle.draw_line(x, 0, x, max_y, Color::PINK);
+        x += gap;
+    }
+    while y < max_y {
+        draw_handle.draw_line(0, y, max_x, y, Color::PINK);
+        y += gap;
     }
 }

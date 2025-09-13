@@ -119,10 +119,7 @@ impl Base for Layout {
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
         let (draw_width, draw_height) =
             crate::ui::common::get_draw_dim(self.dim, parent_dim, &self.children, &self.direction);
-        self.draw_dim = (
-            draw_width,
-            draw_height,
-        );
+        self.draw_dim = (draw_width, draw_height);
     }
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
@@ -141,7 +138,6 @@ impl Base for Layout {
                     let allowed_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     let allowed_width = allowed_width - (self.gap * (child_len - 1));
                     let child_width = f32::round(flex * (allowed_width as f32 / total_flex)) as i32;
-                    // let child_width =
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.borrow_mut().set_dim((child_width, child_height));
                     child.borrow_mut().pass_1((child_width, child_height));
@@ -151,7 +147,6 @@ impl Base for Layout {
                     let allowed_height = allowed_height - (self.gap * (child_len - 1));
                     let child_height =
                         f32::round(flex * (allowed_height as f32 / total_flex)) as i32;
-                    // let child_height = (allowed_height - (self.gap * (child_len - 1))) / child_len;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     child.borrow_mut().set_dim((child_width, child_height));
                     child.borrow_mut().pass_1((child_width, child_height));
@@ -161,113 +156,94 @@ impl Base for Layout {
         self.set_dim(parent_draw_dim);
     }
     fn pass_2(&mut self, passed_pos: (i32, i32)) {
-        let mut padding_left = 0;
-        let mut padding_top = 0;
+        let mut padding_left = self.padding.0;
+        let mut padding_top = self.padding.1;
+
+        let mut cross_paddings = Vec::from(
+            (0..self.children.len())
+                .map(|_| self.padding.1)
+                .collect::<Vec<i32>>(),
+        );
+
         self.pos = passed_pos;
-        match self.direction {
-            Direction::Row => {
-                match self.main_align {
-                    Alignment::Start => padding_left = self.padding.0,
-                    Alignment::Center => {
-                        let self_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
-                        let children_width: i32 = self
-                            .children
-                            .iter()
-                            .map(|child| child.borrow().get_draw_dim().0)
-                            .sum();
-                        let total_gap = self.gap * (self.children.len() as i32 - 1);
-                        let remaining_space = self_width - children_width - total_gap;
-                        padding_left = self.padding.0 + remaining_space / 2;
+
+        let mut comparisons = [self.main_align, self.cross_align];
+
+        if self.direction == Direction::Column {
+            comparisons.swap(0, 1);
+        }
+
+        if comparisons[0] != Alignment::Start {
+            let self_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
+            let children_width = self
+                .children
+                .iter()
+                .map(|child| child.borrow().get_draw_dim().0);
+            let children_width = match self.direction {
+                Direction::Row => children_width.sum(),
+                Direction::Column => children_width.max().unwrap(),
+            };
+            let total_gap = self.gap * (self.children.len() as i32 - 1);
+            let remaining_space = self_width - children_width - total_gap;
+
+            if comparisons[0] == Alignment::Center {
+                if self.direction == Direction::Column {
+                    // If column and cross align center, each child is centered
+                    for (idx, child) in self.children.iter().enumerate() {
+                        let child_width = child.borrow().get_draw_dim().0;
+                        cross_paddings[idx] = (self_width - child_width) / 2;
                     }
-                    Alignment::End => {
-                        let self_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
-                        let children_width: i32 = self
-                            .children
-                            .iter()
-                            .map(|child| child.borrow().get_draw_dim().0)
-                            .sum();
-                        let total_gap = self.gap * (self.children.len() as i32 - 1);
-                        let remaining_space = self_width - children_width - total_gap;
-                        padding_left = self.padding.0 + remaining_space;
-                    }
-                }
-                match self.cross_align {
-                    Alignment::Start => padding_top = self.padding.1,
-                    Alignment::Center => {
-                        for child in self.children.iter() {
-                            let child_height = child.borrow().get_draw_dim().1;
-                            let self_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
-                            let remaining_space = self_height - child_height;
-                            padding_top = self.padding.1 + remaining_space / 2;
-                        }
-                    }
-                    Alignment::End => {
-                        for child in self.children.iter() {
-                            let child_height = child.borrow().get_draw_dim().1;
-                            let self_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
-                            let remaining_space = self_height - child_height;
-                            padding_top = self.padding.1 + remaining_space;
-                        }
-                    }
+                } else {
+                    padding_left = self.padding.0 + remaining_space / 2;
                 }
             }
-            Direction::Column => {
-                match self.main_align {
-                    Alignment::Start => padding_top = self.padding.1,
-                    Alignment::Center => {
-                        let self_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
-                        let children_height: i32 = self
-                            .children
-                            .iter()
-                            .map(|child| child.borrow().get_draw_dim().1)
-                            .sum();
-                        let total_gap = self.gap * (self.children.len() as i32 - 1);
-                        let remaining_space = self_height - children_height - total_gap;
-                        padding_top = self.padding.1 + remaining_space / 2;
-                    }
-                    Alignment::End => {
-                        let self_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
-                        let children_height: i32 = self
-                            .children
-                            .iter()
-                            .map(|child| child.borrow().get_draw_dim().1)
-                            .sum();
-                        let total_gap = self.gap * (self.children.len() as i32 - 1);
-                        let remaining_space = self_height - children_height - total_gap;
-                        padding_top = self.padding.1 + remaining_space;
-                    }
-                }
-                match self.cross_align {
-                    Alignment::Start => padding_left = self.padding.0,
-                    Alignment::Center => {
-                        for child in self.children.iter() {
-                            let child_width = child.borrow().get_draw_dim().0;
-                            let self_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
-                            let remaining_space = self_width - child_width;
-                            padding_left = self.padding.0 + remaining_space / 2;
-                        }
-                    }
-                    Alignment::End => {
-                        for child in self.children.iter() {
-                            let child_width = child.borrow().get_draw_dim().0;
-                            let self_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
-                            let remaining_space = self_width - child_width;
-                            padding_left = self.padding.0 + remaining_space;
-                        }
-                    }
-                }
+
+            if comparisons[0] == Alignment::End {
+                padding_left = self.padding.0 + remaining_space;
             }
         }
-        self.pos = passed_pos;
+
+        if comparisons[1] != Alignment::Start {
+            let self_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
+            let children_height = self
+                .children
+                .iter()
+                .map(|child| child.borrow().get_draw_dim().1);
+            let children_height = match self.direction {
+                Direction::Row => children_height.max().unwrap(),
+                Direction::Column => children_height.sum(),
+            };
+            let total_gap = self.gap * (self.children.len() as i32 - 1);
+            let remaining_space = self_height - children_height - total_gap;
+            if comparisons[1] == Alignment::Center {
+                padding_top = self.padding.1 + remaining_space / 2;
+            }
+            if comparisons[1] == Alignment::End {
+                padding_top = self.padding.1 + remaining_space;
+            }
+        }
+
         let mut next_pos = self.pos;
-        next_pos.0 += padding_left;
+        if self.direction == Direction::Column && self.cross_align == Alignment::Center {
+            next_pos.0 = self.pos.0 + cross_paddings[0];
+        } else {
+            next_pos.0 += padding_left;
+        }
         next_pos.1 += padding_top;
-        for child in self.children.iter() {
+
+        for (idx, child) in self.children.iter().enumerate() {
             child.borrow_mut().pass_2(next_pos);
             let (child_width, child_height) = child.borrow().get_draw_dim();
-            match self.direction {
-                Direction::Row => next_pos.0 += child_width + self.gap,
-                Direction::Column => next_pos.1 += child_height + self.gap,
+            if idx < self.children.len() - 1 {
+                match self.direction {
+                    Direction::Row => next_pos.0 += child_width + self.gap,
+                    Direction::Column => {
+                        if self.cross_align == Alignment::Center {
+                            next_pos.0 = self.pos.0 + cross_paddings[idx + 1];
+                        }
+                        next_pos.1 += child_height + self.gap
+                    }
+                }
             }
         }
     }
@@ -277,8 +253,21 @@ impl Base for Layout {
     fn debug_dims(&self, depth: usize) {
         tabbed_print(
             &format!(
-                "<layout width={} height={} x={} y={} >",
-                self.draw_dim.0, self.draw_dim.1, self.pos.0, self.pos.1
+                "<layout width={} height={} x={} y={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} name='{}' flex={}>",
+                self.draw_dim.0,
+                self.draw_dim.1,
+                self.pos.0,
+                self.pos.1,
+                self.padding.0,
+                self.padding.1,
+                self.padding.2,
+                self.padding.3,
+                self.gap,
+                self.direction,
+                self.main_align,
+                self.cross_align,
+                self.dbg_name,
+                self.flex
             ),
             depth,
         );
