@@ -6,6 +6,7 @@ pub enum Length {
     FILL,
     FIT,
     FIXED(i32),
+    PERCENT(i32),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -36,6 +37,7 @@ pub fn get_draw_dim(
     dim: (Length, Length),
     parent_dim: (i32, i32),
     children: &Vec<Rc<RefCell<dyn Base>>>,
+    
     direction: &Direction,
 ) -> (i32, i32) {
     let (width, height) = dim;
@@ -50,6 +52,7 @@ pub fn get_draw_dim(
             }
         }
         Length::FIXED(l) => l,
+        Length::PERCENT(p) => (parent_dim.0 * p) / 100,
     };
 
     let draw_height = match height {
@@ -62,6 +65,7 @@ pub fn get_draw_dim(
             }
         }
         Length::FIXED(l) => l,
+        Length::PERCENT(p) => (parent_dim.1 * p) / 100,
     };
 
     (draw_width, draw_height)

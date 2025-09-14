@@ -144,7 +144,7 @@ impl Base for TextLayout {
             crate::ui::common::get_draw_dim(self.dim, parent_dim, &self.children, &self.direction);
 
         if self.wrap {
-            let max_width = parent_dim.0 - self.padding.0 - self.padding.2;
+            let max_width = draw_width - self.padding.0 - self.padding.2;
             if content_width > max_width {
                 let text_rows = get_text_rows(&self.content, max_width, self.font_size);
                 self.children = text_rows
@@ -154,18 +154,18 @@ impl Base for TextLayout {
                     })
                     .collect();
             }
-            if self.dim.0 == Length::FIT {
-                draw_width = self
-                    .children
-                    .iter()
-                    .map(|child| child.borrow().get_draw_dim().0)
-                    .max()
-                    .unwrap()
-                    + self.padding.0
-                    + self.padding.2;
-            }
         }
 
+        if self.dim.0 == Length::FIT {
+            draw_width = self
+                .children
+                .iter()
+                .map(|child| child.borrow().get_draw_dim().0)
+                .max()
+                .unwrap()
+                + self.padding.0
+                + self.padding.2;
+        }
         if self.dim.1 == Length::FIT {
             draw_height = self
                 .children
@@ -177,7 +177,10 @@ impl Base for TextLayout {
                 + self.padding.3;
         }
 
-        self.draw_dim = (draw_width, draw_height);
+        self.draw_dim = (
+            draw_width + self.padding.0 + self.padding.2,
+            draw_height + self.padding.1 + self.padding.3,
+        );
     }
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim

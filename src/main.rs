@@ -8,6 +8,7 @@ mod ui {
 
 use raylib::prelude::*;
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::rc::Rc;
 use std::vec;
 use ui::common::{Base, Length};
@@ -37,7 +38,7 @@ fn main() {
         .dim((Length::FIT, Length::FIT))
         .padding((20, 20, 20, 20))
         .build();
-        
+
     let el3 = text_test();
     let mut root = Root::new(el3, (1000, 1000));
 
@@ -46,7 +47,6 @@ fn main() {
     root.debug_dims(0);
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&thread);
-        d.clear_background(Color::YELLOW);
         root.draw(&mut d);
         // draw_grid(&mut d, 1000, 1000, 50);
     }
@@ -56,19 +56,36 @@ fn text_test() -> Rc<RefCell<dyn Base>> {
     let text_builder = TextLayout::get_builder();
 
     let text1 = text_builder
+        .clone()
         .content("Hello World! This is a test of the text layout system.")
         .font_size(24)
         .wrap(true)
         .bg_color(Color::GREEN)
-        .dim((Length::FIT, Length::FIT))
+        .dim((Length::PERCENT(50), Length::FIT))
+        .flex(1.0)
+        .padding((10, 10, 10, 10))
         .build();
+    // let text2 = text_builder
+    //     .clone()
+    //     .content("This is another text element.")
+    //     .font_size(18)
+    //     .wrap(true)
+    //     .bg_color(Color::RAYWHITE)
+    //     .dim((Length::FILL, Length::FILL))
+    //     .build();
     let div = Layout::get_col_builder()
-        .children(vec![text1])
+        .children(
+            (0..10)
+                .map(|_| {
+                    Rc::new(RefCell::new(text1.borrow().deref().clone())) as Rc<RefCell<dyn Base>>
+                })
+                .collect(),
+        )
         .bg_color(Color::DARKGRAY)
         .padding((10, 10, 10, 10))
-        .dim((Length::FIXED(300), Length::FIT))
+        .dim((Length::PERCENT(50), Length::PERCENT(90)))
         .gap(10)
-        .flex(1.0)
+        .cross_align(ui::common::Alignment::Start)
         .build();
     div
 }
@@ -105,7 +122,7 @@ fn test() -> Rc<RefCell<dyn Base>> {
             Layout::get_row_builder()
                 .children(vec![t.clone()])
                 .bg_color(Color::BLUE)
-                .dim((Length::FIT, Length::FILL))
+                .dim((Length::FILL, Length::FILL))
                 .padding((5, 5, 5, 5))
                 .gap(5)
                 .flex((i + 1) as f32) // Example flex value

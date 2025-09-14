@@ -119,7 +119,10 @@ impl Base for Layout {
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
         let (draw_width, draw_height) =
             crate::ui::common::get_draw_dim(self.dim, parent_dim, &self.children, &self.direction);
-        self.draw_dim = (draw_width, draw_height);
+        self.draw_dim = (
+            draw_width + self.padding.0 + self.padding.3,
+            draw_height + self.padding.1 + self.padding.2,
+        );
     }
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
@@ -194,7 +197,7 @@ impl Base for Layout {
                         cross_paddings[idx] = (self_width - child_width) / 2;
                     }
                 } else {
-                    padding_left = self.padding.0 + remaining_space / 2;
+                    padding_left =  self.padding.0 + remaining_space / 2;
                 }
             }
 
