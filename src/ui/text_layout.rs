@@ -163,8 +163,6 @@ impl Base for TextLayout {
                 .map(|child| child.borrow().get_draw_dim().0)
                 .max()
                 .unwrap()
-                + self.padding.0
-                + self.padding.2;
         }
         if self.dim.1 == Length::FIT {
             draw_height = self
@@ -172,9 +170,7 @@ impl Base for TextLayout {
                 .iter()
                 .map(|child| child.borrow().get_draw_dim().1)
                 .sum::<i32>()
-                + self.gap * (self.children.len() as i32 - 1)
-                + self.padding.1
-                + self.padding.3;
+                + self.gap * (self.children.len() as i32 - 1);
         }
 
         self.draw_dim = (
@@ -252,7 +248,7 @@ impl Base for TextLayout {
                     // If column and cross align center, each child is centered
                     for (idx, child) in self.children.iter().enumerate() {
                         let child_width = child.borrow().get_draw_dim().0;
-                        cross_paddings[idx] = (self_width - child_width) / 2;
+                        cross_paddings[idx] = self.padding.0 + (self_width - child_width) / 2;
                     }
                 } else {
                     padding_left = self.padding.0 + remaining_space / 2;

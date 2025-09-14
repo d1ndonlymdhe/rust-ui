@@ -194,7 +194,7 @@ impl Base for Layout {
                     // If column and cross align center, each child is centered
                     for (idx, child) in self.children.iter().enumerate() {
                         let child_width = child.borrow().get_draw_dim().0;
-                        cross_paddings[idx] = (self_width - child_width) / 2;
+                        cross_paddings[idx] = self.padding.0 + (self_width - child_width) / 2;
                     }
                 } else {
                     padding_left =  self.padding.0 + remaining_space / 2;

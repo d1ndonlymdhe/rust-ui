@@ -15,6 +15,7 @@ use ui::common::{Base, Length};
 use ui::root::Root;
 use ui::text::RawText;
 
+use crate::ui::common::Alignment;
 use crate::ui::layout::Layout;
 use crate::ui::text_layout::TextLayout;
 
@@ -48,7 +49,6 @@ fn main() {
     while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&thread);
         root.draw(&mut d);
-        // draw_grid(&mut d, 1000, 1000, 50);
     }
 }
 
@@ -62,20 +62,14 @@ fn text_test() -> Rc<RefCell<dyn Base>> {
         .wrap(true)
         .bg_color(Color::GREEN)
         .dim((Length::PERCENT(50), Length::FIT))
+        .cross_align(Alignment::Center)
         .flex(1.0)
         .padding((10, 10, 10, 10))
         .build();
-    // let text2 = text_builder
-    //     .clone()
-    //     .content("This is another text element.")
-    //     .font_size(18)
-    //     .wrap(true)
-    //     .bg_color(Color::RAYWHITE)
-    //     .dim((Length::FILL, Length::FILL))
-    //     .build();
+
     let div = Layout::get_col_builder()
         .children(
-            (0..10)
+            (0..5)
                 .map(|_| {
                     Rc::new(RefCell::new(text1.borrow().deref().clone())) as Rc<RefCell<dyn Base>>
                 })
@@ -85,7 +79,7 @@ fn text_test() -> Rc<RefCell<dyn Base>> {
         .padding((10, 10, 10, 10))
         .dim((Length::PERCENT(50), Length::PERCENT(90)))
         .gap(10)
-        .cross_align(ui::common::Alignment::Start)
+        .cross_align(ui::common::Alignment::Center)
         .build();
     div
 }
@@ -136,8 +130,8 @@ fn test() -> Rc<RefCell<dyn Base>> {
         .padding((10, 10, 10, 10))
         .gap(10)
         .flex(1.0)
-        .main_align(ui::common::Alignment::Start)
-        .cross_align(ui::common::Alignment::Center)
+        .main_align(Alignment::Start)
+        .cross_align(Alignment::Center)
         .build();
 
     let col = Layout::get_col_builder()
