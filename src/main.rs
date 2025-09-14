@@ -3,6 +3,7 @@ mod ui {
     pub mod layout;
     pub mod root;
     pub mod text;
+    pub mod text_layout;
 }
 
 use raylib::prelude::*;
@@ -11,9 +12,10 @@ use std::rc::Rc;
 use std::vec;
 use ui::common::{Base, Length};
 use ui::root::Root;
-use ui::text::Text;
+use ui::text::RawText;
 
 use crate::ui::layout::Layout;
+use crate::ui::text_layout::TextLayout;
 
 fn main() {
     println!("Hello, world!");
@@ -26,7 +28,7 @@ fn main() {
     let el2 = Layout::get_row_builder()
         .children(vec![
             Layout::get_row_builder()
-                .children(vec![Text::new("Hello", 24)])
+                .children(vec![RawText::new("Hello", 24)])
                 .bg_color(Color::LIGHTBLUE)
                 .dim((Length::FIT, Length::FIT))
                 .build(),
@@ -35,8 +37,9 @@ fn main() {
         .dim((Length::FIT, Length::FIT))
         .padding((20, 20, 20, 20))
         .build();
-
-    let mut root = Root::new(el, (1000, 1000));
+        
+    let el3 = text_test();
+    let mut root = Root::new(el3, (1000, 1000));
 
     root.pass_1((0, 0));
     root.pass_2((0, 0));
@@ -49,12 +52,43 @@ fn main() {
     }
 }
 
+fn text_test() -> Rc<RefCell<dyn Base>> {
+    let text_builder = TextLayout::get_builder();
+
+    let text1 = text_builder
+        .content("Hello World! This is a test of the text layout system.")
+        .font_size(24)
+        .wrap(true)
+        .bg_color(Color::GREEN)
+        .dim((Length::FIT, Length::FIT))
+        .build();
+    let div = Layout::get_col_builder()
+        .children(vec![text1])
+        .bg_color(Color::DARKGRAY)
+        .padding((10, 10, 10, 10))
+        .dim((Length::FIXED(300), Length::FIT))
+        .gap(10)
+        .flex(1.0)
+        .build();
+    div
+}
+
 fn test() -> Rc<RefCell<dyn Base>> {
-    let text1 = Text::new("Hello", 24);
-    let text2 = Text::new("World!", 24);
-    let text3 = Text::new("This is a test.", 24);
-    let text4 = Text::new("Of the emergency", 24);
-    let text5 = Text::new("Broadcast system.", 24);
+    let text_builder = TextLayout::get_builder();
+
+    // let text1 = Text::new("Hello", 24);
+
+    let text1 = text_builder
+        .content("Hello")
+        .font_size(24)
+        .wrap(true)
+        .dim((Length::FIT, Length::FIT))
+        .build();
+
+    let text2 = RawText::new("World!", 24);
+    let text3 = RawText::new("This is a test.", 24);
+    let text4 = RawText::new("Of the emergency", 24);
+    let text5 = RawText::new("Broadcast system.", 24);
 
     let row1 = Layout::get_row_builder()
         .children(vec![text1, text2])
@@ -107,12 +141,12 @@ fn make_spiral(curr_depth: usize, max_depth: usize) -> Rc<RefCell<dyn Base>> {
         if curr_depth % 2 == 0 {
             return row_builder
                 .clone()
-                .children(vec![Text::new(&format!("{}", curr_depth), 12)])
+                .children(vec![RawText::new(&format!("{}", curr_depth), 12)])
                 .build();
         } else {
             return col_builder
                 .clone()
-                .children(vec![Text::new(&format!("{}", curr_depth), 12)])
+                .children(vec![RawText::new(&format!("{}", curr_depth), 12)])
                 .build();
         }
     }
@@ -124,7 +158,7 @@ fn make_spiral(curr_depth: usize, max_depth: usize) -> Rc<RefCell<dyn Base>> {
             let mut c = vec![
                 col_builder
                     .clone()
-                    .children(vec![Text::new(&format!("{}", curr_depth), 12)])
+                    .children(vec![RawText::new(&format!("{}", curr_depth), 12)])
                     .build(),
                 child,
             ];
@@ -139,7 +173,7 @@ fn make_spiral(curr_depth: usize, max_depth: usize) -> Rc<RefCell<dyn Base>> {
         let children = {
             let mut c = vec![
                 col_child
-                    .children(vec![Text::new(&format!("{}", curr_depth), 12)])
+                    .children(vec![RawText::new(&format!("{}", curr_depth), 12)])
                     .build(),
                 child,
             ];

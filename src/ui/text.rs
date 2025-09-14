@@ -2,13 +2,13 @@ use crate::ui::common::*;
 use raylib::prelude::*;
 use std::{cell::RefCell, ffi::CString, rc::Rc};
 
-pub struct Text {
+pub struct RawText {
     pub content: String,
     pub font_size: i32,
     pub pos: (i32, i32),
 }
 
-impl Base for Text {
+impl Base for RawText {
     fn set_pos(&mut self, pos: (i32, i32)) {
         self.pos = pos;
     }
@@ -57,7 +57,7 @@ impl Base for Text {
     }
 }
 
-impl Text {
+impl RawText {
     pub fn new(content: &str, font_size: i32) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             content: content.to_string(),

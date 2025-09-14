@@ -1,4 +1,4 @@
-use raylib::prelude::RaylibDrawHandle;
+use raylib::{color::Color, prelude::{RaylibDraw, RaylibDrawHandle}};
 
 use crate::ui::common::*;
 use std::{cell::RefCell, rc::Rc};
@@ -15,6 +15,7 @@ impl Base for Root {
     }
     fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
         let child = self.child.clone();
+        draw_handle.clear_background(Color::BLACK);
         child.clone().borrow_mut().set_pos(self.pos);
         child.clone().borrow_mut().set_dim(self.draw_dim);
         child.clone().borrow_mut().draw(draw_handle);
