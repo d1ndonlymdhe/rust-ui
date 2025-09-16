@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::vec;
-use ui::common::{Base, Length};
+use ui::common::{Base, Length, MouseEvent};
 use ui::root::Root;
 use ui::text::RawText;
 
@@ -40,19 +40,50 @@ fn main() {
         .padding((20, 20, 20, 20))
         .build();
 
-    let el3 = text_test();
-    let mut root = Root::new(el3, (1000, 1000));
+    let root = Root::new(RawText::new("Loading", 20), (1000, 1000));
+    let el3 = text_test(&(root.clone() as Rc<RefCell<dyn Base>>)); // Pass root reference here
 
-    root.pass_1((0, 0));
-    root.pass_2((0, 0));
-    root.debug_dims(0);
+    {
+        let binding = root.clone();
+        let mut mut_root = binding.borrow_mut();
+        mut_root.set_children(vec![el3]);
+        mut_root.pass_1((0, 0));
+        mut_root.pass_2((0, 0));
+        mut_root.debug_dims(0);
+    }
+
     while !rl.window_should_close() {
+        let mouse_pos = rl.get_mouse_position();
+        let left_mouse_pressed = rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
+
         let mut d = rl.begin_drawing(&thread);
-        root.draw(&mut d);
+
+        let mouse_event = MouseEvent {
+            pos: (mouse_pos.x as i32, mouse_pos.y as i32),
+            left_button_down: left_mouse_pressed,
+        };
+        {
+            let binding = root.clone();
+            let root = binding.borrow();
+            root.draw(&mut d);
+            let manual_event = MouseEvent {
+                pos: (20, 450),
+                left_button_down: true,
+            };
+            root.handle_mouse_event(mouse_event);
+        }
+        let binding = root.clone();
+        let mut mut_root = binding.borrow_mut();
+        {
+            mut_root.pass_1((0, 0));
+            mut_root.pass_2((0, 0));
+        }
+        // root.draw(&mut d);
+        // draw_grid(&mut d, 1000, 1000, 50);
     }
 }
 
-fn text_test() -> Rc<RefCell<dyn Base>> {
+fn text_test(root: &Rc<RefCell<dyn Base>>) -> Rc<RefCell<dyn Base>> {
     let text_builder = TextLayout::get_builder();
 
     let text1 = text_builder
@@ -65,22 +96,51 @@ fn text_test() -> Rc<RefCell<dyn Base>> {
         .cross_align(Alignment::Center)
         .flex(1.0)
         .padding((10, 10, 10, 10))
+        .on_click(Box::new(|_mouse_event| {
+            println!("Clicked the text!");
+            false
+        }))
         .build();
-
+    let btn = TextLayout::get_builder()
+        .bg_color(Color::PURPLE)
+        .content("CLICK ME!")
+        .build();
     let div = Layout::get_col_builder()
-        .children(
-            (0..5)
-                .map(|_| {
-                    Rc::new(RefCell::new(text1.borrow().deref().clone())) as Rc<RefCell<dyn Base>>
-                })
-                .collect(),
-        )
+        .children({
+            let mut x = ((0..5)
+                .map(|_| Rc::new(RefCell::new(text1.borrow().clone())) as Rc<RefCell<dyn Base>>)
+                .collect::<Vec<_>>());
+            x.push(btn.clone());
+            x
+        })
         .bg_color(Color::DARKGRAY)
         .padding((10, 10, 10, 10))
-        .dim((Length::PERCENT(50), Length::PERCENT(90)))
+        .dim((Length::FILL, Length::FILL))
         .gap(10)
         .cross_align(ui::common::Alignment::Center)
+        .on_click(Box::new(|_mouse_event| {
+            println!("Clicked the div!");
+            false
+        }))
+        .dbg_name("test_div")
         .build();
+
+    let root_clone = root.clone();
+    btn.borrow_mut().on_click(Box::new(move |_mouse_event| {
+        let d = {
+            let root_ref = root_clone.borrow();
+            root_ref.get_by_id("test_div")
+        };
+        if d.is_some() {
+            let d = d.unwrap();
+
+            d.borrow_mut().set_children(vec![
+                Rc::new(RefCell::new(text1.borrow().clone())) as Rc<RefCell<dyn Base>>
+            ])
+        }
+
+        false
+    }));
     div
 }
 

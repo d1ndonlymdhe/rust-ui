@@ -1,10 +1,17 @@
 use std::{cell::RefCell, rc::Rc};
 
-use raylib::{color::Color, prelude::RaylibDraw};
+use raylib::{
+    RaylibHandle,
+    color::Color,
+    ffi::MouseButton,
+    prelude::{RaylibDraw, RaylibDrawHandle},
+};
 
-use crate::ui::common::{Alignment, Base, Direction, Length, tabbed_print};
+use crate::ui::{
+    common::{Alignment, Base, Direction, Length, MouseEvent, tabbed_print},
+    layout,
+};
 
-#[derive(Clone)]
 pub struct Layout {
     pub children: Vec<Rc<RefCell<dyn Base>>>,
     pub dim: (Length, Length),
@@ -19,11 +26,36 @@ pub struct Layout {
     pub gap: i32,
     pub dbg_name: String,
     pub flex: f32,
+    pub on_click: Option<Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>>,
 }
 
-#[derive(Clone)]
 pub struct LayoutProps {
     layout: Layout,
+}
+
+impl LayoutProps {
+    pub fn clone(&self) -> Self {
+        Self {
+            layout: Layout {
+                children: self.layout.children.clone(),
+                dim: self.layout.dim,
+                draw_dim: self.layout.draw_dim,
+                pos: self.layout.pos,
+                bg_color: self.layout.bg_color,
+                direction: self.layout.direction,
+                padding: self.layout.padding,
+                main_align: self.layout.main_align,
+                cross_align: self.layout.cross_align,
+                gap: self.layout.gap,
+                dbg_name: self.layout.dbg_name.clone(),
+                flex: self.layout.flex,
+                on_click: match &self.layout.on_click {
+                    Some(f) => Some(f.clone()),
+                    None => None,
+                },
+            },
+        }
+    }
 }
 
 impl LayoutProps {
@@ -42,6 +74,7 @@ impl LayoutProps {
                 gap: 0,
                 dbg_name: "".into(),
                 flex: 1.0,
+                on_click: None,
             },
         }
     }
@@ -85,8 +118,30 @@ impl LayoutProps {
         self.layout.flex = flex;
         self
     }
-    pub fn build(&self) -> Rc<RefCell<Layout>> {
-        Rc::new(RefCell::new(self.layout.clone()))
+    pub fn on_click(mut self, f: Box<dyn FnMut(MouseEvent) -> bool>) -> Self {
+        self.layout.on_click = Some(Rc::new(RefCell::new(f)));
+        self
+    }
+    pub fn build(self) -> Rc<RefCell<Layout>> {
+        let layout = self.layout;
+        Rc::new(RefCell::new(Layout {
+            children: layout.children.clone(),
+            dim: layout.dim,
+            draw_dim: layout.draw_dim,
+            pos: layout.pos,
+            bg_color: layout.bg_color,
+            direction: layout.direction,
+            padding: layout.padding,
+            main_align: layout.main_align,
+            cross_align: layout.cross_align,
+            gap: layout.gap,
+            dbg_name: layout.dbg_name.clone(),
+            flex: layout.flex,
+            on_click: match layout.on_click {
+                Some(f) => Some(f.clone()),
+                None => None,
+            },
+        }))
     }
 }
 
@@ -103,7 +158,7 @@ impl Base for Layout {
     fn set_pos(&mut self, pos: (i32, i32)) {
         self.pos = pos;
     }
-    fn draw(&self, draw_handle: &mut raylib::prelude::RaylibDrawHandle) {
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
         draw_handle.draw_rectangle(
             self.pos.0,
             self.pos.1,
@@ -113,7 +168,36 @@ impl Base for Layout {
         );
         for child in self.children.iter() {
             let child = child.clone();
-            child.borrow_mut().draw(draw_handle);
+            child.borrow().draw(draw_handle);
+        }
+    }
+    fn handle_mouse_event(&self, mouse_event: MouseEvent) -> bool {
+        let mut event_propagated = true;
+        for child in self.children.iter() {
+            let child = child.clone();
+            let e = child.borrow().handle_mouse_event(mouse_event);
+            if !e {
+                event_propagated = false;
+            }
+        }
+        if event_propagated {
+            let mouse_pos = mouse_event.pos;
+            let max_x = self.pos.0 + self.draw_dim.0;
+            let max_y = self.pos.1 + self.draw_dim.1;
+            if mouse_event.left_button_down
+                && mouse_pos.0 as i32 >= self.pos.0
+                && mouse_pos.0 as i32 <= max_x
+                && mouse_pos.1 as i32 >= self.pos.1
+                && mouse_pos.1 as i32 <= max_y
+            {
+                if let Some(f) = &self.on_click {
+                    let f = f.clone();
+                    event_propagated = (f.borrow_mut())(mouse_event);
+                }
+            }
+            event_propagated
+        } else {
+            true
         }
     }
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
@@ -197,7 +281,7 @@ impl Base for Layout {
                         cross_paddings[idx] = self.padding.0 + (self_width - child_width) / 2;
                     }
                 } else {
-                    padding_left =  self.padding.0 + remaining_space / 2;
+                    padding_left = self.padding.0 + remaining_space / 2;
                 }
             }
 
@@ -278,5 +362,25 @@ impl Base for Layout {
             child.borrow().debug_dims(depth + 1);
         }
         tabbed_print("</layout>", depth);
+    }
+    fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>) {
+        self.children = children;
+    }
+    fn on_click(&mut self, f: Box<dyn FnMut(MouseEvent) -> bool>) {
+        self.on_click = Some(Rc::new(RefCell::new(f)));
+    }
+    fn get_id(&self) -> String {
+        self.dbg_name.clone()
+    }
+    fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>> {
+        for child in self.children.iter() {
+            if child.borrow().get_id() == id {
+                return Some(child.clone());
+            }
+            if let Some(found) = child.borrow().get_by_id(id) {
+                return Some(found);
+            }
+        }
+        None
     }
 }

@@ -1,10 +1,16 @@
 use std::{cell::RefCell, ffi::CString, rc::Rc};
 
-use raylib::{color::Color, prelude::RaylibDraw};
+use raylib::{
+    RaylibHandle,
+    color::Color,
+    prelude::{RaylibDraw, RaylibDrawHandle},
+};
 
-use crate::ui::common::{Alignment, Base, Direction, Length, tabbed_print};
+use crate::ui::{
+    common::{Alignment, Base, Direction, Length, MouseEvent, tabbed_print},
+    layout,
+};
 
-#[derive(Clone)]
 pub struct TextLayout {
     pub children: Vec<Rc<RefCell<dyn Base>>>,
 
@@ -24,9 +30,9 @@ pub struct TextLayout {
     pub gap: i32,
     pub dbg_name: String,
     pub flex: f32,
+    pub on_click: Option<Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>>,
 }
 
-#[derive(Clone)]
 pub struct TextLayoutProps {
     pub layout: TextLayout,
 }
@@ -50,13 +56,10 @@ impl TextLayoutProps {
                 gap: 0,
                 dbg_name: "".into(),
                 flex: 1.0,
+                on_click: None,
             },
         }
     }
-    // pub fn children(mut self, children: Vec<Rc<RefCell<dyn Base>>>) -> Self {
-    //     self.layout.children = children;
-    //     self
-    // }
     pub fn content(mut self, content: &str) -> Self {
         self.layout.content = content.into();
         self
@@ -106,8 +109,56 @@ impl TextLayoutProps {
         self.layout.flex = flex;
         self
     }
-    pub fn build(&self) -> Rc<RefCell<TextLayout>> {
-        Rc::new(RefCell::new(self.layout.clone()))
+    pub fn on_click(mut self, f: Box<dyn FnMut(MouseEvent) -> bool>) -> Self {
+        self.layout.on_click = Some(Rc::new(RefCell::new(f)));
+        self
+    }
+
+    pub fn build(self) -> Rc<RefCell<TextLayout>> {
+        let layout = self.layout;
+        Rc::new(RefCell::new(TextLayout {
+            children: layout.children,
+            content: layout.content,
+            font_size: layout.font_size,
+            wrap: layout.wrap,
+            dim: layout.dim,
+            draw_dim: layout.draw_dim,
+            pos: layout.pos,
+            bg_color: layout.bg_color,
+            direction: layout.direction,
+            padding: layout.padding,
+            main_align: layout.main_align,
+            cross_align: layout.cross_align,
+            gap: layout.gap,
+            dbg_name: layout.dbg_name,
+            flex: layout.flex,
+            on_click: layout.on_click,
+        }))
+    }
+    pub fn clone(&self) -> Self {
+        Self {
+            layout: TextLayout {
+                children: self.layout.children.clone(),
+                content: self.layout.content.clone(),
+                font_size: self.layout.font_size,
+                wrap: self.layout.wrap,
+                dim: self.layout.dim,
+                draw_dim: self.layout.draw_dim,
+                pos: self.layout.pos,
+                bg_color: self.layout.bg_color,
+                direction: self.layout.direction,
+                padding: self.layout.padding,
+                main_align: self.layout.main_align,
+                cross_align: self.layout.cross_align,
+                gap: self.layout.gap,
+                dbg_name: self.layout.dbg_name.clone(),
+                flex: self.layout.flex,
+                on_click: match &self.layout.on_click {
+                    Some(f) => Some(f.clone()),
+                    None => None,
+                },
+            },
+        }
     }
 }
 
@@ -115,13 +166,42 @@ impl TextLayout {
     pub fn get_builder() -> TextLayoutProps {
         TextLayoutProps::new()
     }
+    pub fn clone(&self) -> Self {
+        Self {
+            children: self.children.clone(),
+            content: self.content.clone(),
+            font_size: self.font_size,
+            wrap: self.wrap,
+            dim: self.dim,
+            draw_dim: self.draw_dim,
+            pos: self.pos,
+            bg_color: self.bg_color,
+            direction: self.direction,
+            padding: self.padding,
+            main_align: self.main_align,
+            cross_align: self.cross_align,
+            gap: self.gap,
+            dbg_name: self.dbg_name.clone(),
+            flex: self.flex,
+            on_click: match &self.on_click {
+                Some(f) => Some(f.clone()),
+                None => None,
+            },
+        }
+    }
 }
 
 impl Base for TextLayout {
+    fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
+        ()
+    }
+    fn on_click(&mut self, f: Box<dyn FnMut(MouseEvent) -> bool>) {
+        self.on_click = Some(Rc::new(RefCell::new(f)));
+    }
     fn set_pos(&mut self, pos: (i32, i32)) {
         self.pos = pos;
     }
-    fn draw(&self, draw_handle: &mut raylib::prelude::RaylibDrawHandle) {
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
         draw_handle.draw_rectangle(
             self.pos.0,
             self.pos.1,
@@ -131,9 +211,48 @@ impl Base for TextLayout {
         );
         for child in self.children.iter() {
             let child = child.clone();
-            child.borrow_mut().draw(draw_handle);
+            child.borrow().draw(draw_handle);
         }
     }
+    fn get_id(&self) -> String {
+        self.dbg_name.clone()
+    }
+    fn handle_mouse_event(&self, mouse_event: MouseEvent) -> bool {
+        let mut event_propagated = false;
+        let mouse_pos = mouse_event.pos;
+        let max_x = self.pos.0 + self.draw_dim.0;
+        let max_y = self.pos.1 + self.draw_dim.1;
+        if mouse_event.left_button_down
+            && mouse_pos.0 as i32 >= self.pos.0
+            && mouse_pos.0 as i32 <= max_x
+            && mouse_pos.1 as i32 >= self.pos.1
+            && mouse_pos.1 as i32 <= max_y
+        {
+            if let Some(f) = &self.on_click {
+                let f = f.clone();
+                let e = f.borrow_mut()(mouse_event);
+                if e {
+                    event_propagated = true;
+                }
+            }
+            event_propagated
+        } else {
+            true
+        }
+    }
+
+    fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>> {
+        for child in self.children.iter() {
+            if child.borrow().get_id() == id {
+                return Some(child.clone());
+            }
+            if let Some(found) = child.borrow().get_by_id(id) {
+                return Some(found);
+            }
+        }
+        None
+    }
+
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
         self.children = vec![crate::ui::text::RawText::new(&self.content, self.font_size)];
         let content_width = unsafe {

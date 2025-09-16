@@ -55,6 +55,22 @@ impl Base for RawText {
     fn get_flex(&self) -> f32 {
         1.0
     }
+
+    fn handle_mouse_event(&self, _mouse_event: MouseEvent) -> bool {
+        true
+    }
+    fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
+        panic!("RawText cannot have children");
+    }
+    fn on_click(&mut self, _f: Box<dyn FnMut(MouseEvent) -> bool>) {
+        panic!("RawText cannot have on_click");
+    }
+    fn get_id(&self) -> String {
+        "".to_string()
+    }
+    fn get_by_id(&self, _id: &str) -> Option<Rc<RefCell<dyn Base>>> {
+        None
+    }
 }
 
 impl RawText {

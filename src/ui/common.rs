@@ -25,12 +25,23 @@ pub enum Alignment {
 pub trait Base {
     fn set_pos(&mut self, pos: (i32, i32));
     fn draw(&self, draw_handle: &mut RaylibDrawHandle);
+    fn handle_mouse_event(&self, mouse_event: MouseEvent) -> bool;
     fn set_dim(&mut self, parent_draw_dim: (i32, i32));
     fn get_draw_dim(&self) -> (i32, i32);
     fn pass_1(&mut self, parent_draw_dim: (i32, i32));
     fn pass_2(&mut self, parent_pos: (i32, i32));
     fn get_flex(&self) -> f32;
     fn debug_dims(&self, depth: usize);
+    fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>);
+    fn on_click(&mut self, f: Box<dyn FnMut(MouseEvent) -> bool>);
+    fn get_id(&self) -> String;
+    fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>>;
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct MouseEvent {
+    pub pos: (i32, i32),
+    pub left_button_down: bool,
 }
 
 pub fn get_draw_dim(
