@@ -4,7 +4,7 @@ use raylib::{
 };
 
 use crate::ui::common::*;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, vec};
 
 pub struct Root {
     pub child: Rc<RefCell<dyn Base>>,
@@ -13,6 +13,9 @@ pub struct Root {
 }
 
 impl Base for Root {
+    fn get_draw_pos(&self) -> (i32, i32) {
+        self.pos
+    }
     fn set_pos(&mut self, _pos: (i32, i32)) {
         panic!("Root cannot have parent");
     }
@@ -26,9 +29,20 @@ impl Base for Root {
         let child = self.child.borrow();
         child.draw(draw_handle);
     }
-    fn handle_mouse_event(&self, mouse_event: MouseEvent) -> bool {
+    fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String> {
         let child = self.child.clone();
-        child.borrow().handle_mouse_event(mouse_event)
+        let hit_children = child.borrow().get_mouse_event_handlers(mouse_event);
+        for child_id in hit_children.iter() {
+            let child = self.get_by_id(&child_id);
+            if let Some(child) = child {
+                let child = child.borrow();
+                let propagate = child.execute_on_click(mouse_event);
+                if !propagate {
+                    break;
+                }
+            }
+        }
+        vec![]
     }
     fn on_click(&mut self, _f: Box<dyn FnMut(MouseEvent) -> bool>) {
         ()
@@ -74,15 +88,6 @@ impl Base for Root {
         let child = self.child.clone();
 
         let is_target = {
-            match child.try_borrow_mut() {
-                Ok(borrowed_child) => {
-                    println!("Successfully borrowed child for ID check");
-                    borrowed_child.get_id() == id},
-                Err(_) => {
-                    println!("Failed to borrow child for ID check");
-                    false
-                }
-            };
 
             let borrowed_child = child.borrow();
             borrowed_child.get_id() == id
@@ -99,6 +104,10 @@ impl Base for Root {
         } else {
             child.borrow().get_by_id(id)
         }
+    }
+    
+    fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
+        Rc::new(RefCell::new(|_mouse_event| true))
     }
 }
 

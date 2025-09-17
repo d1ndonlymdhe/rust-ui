@@ -8,7 +8,6 @@ mod ui {
 
 use raylib::prelude::*;
 use std::cell::RefCell;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::vec;
 use ui::common::{Base, Length, MouseEvent};
@@ -25,28 +24,14 @@ fn main() {
         .size(1000, 1000)
         .title("Rust UI Example")
         .build();
-    let el = test();
-
-    let el2 = Layout::get_row_builder()
-        .children(vec![
-            Layout::get_row_builder()
-                .children(vec![RawText::new("Hello", 24)])
-                .bg_color(Color::LIGHTBLUE)
-                .dim((Length::FIT, Length::FIT))
-                .build(),
-        ])
-        .bg_color(Color::DARKGRAY)
-        .dim((Length::FIT, Length::FIT))
-        .padding((20, 20, 20, 20))
-        .build();
 
     let root = Root::new(RawText::new("Loading", 20), (1000, 1000));
-    let el3 = text_test(&(root.clone() as Rc<RefCell<dyn Base>>)); // Pass root reference here
+    let test_element = text_test(&(root.clone() as Rc<RefCell<dyn Base>>)); // Pass root reference here
 
     {
         let binding = root.clone();
         let mut mut_root = binding.borrow_mut();
-        mut_root.set_children(vec![el3]);
+        mut_root.set_children(vec![test_element]);
         mut_root.pass_1((0, 0));
         mut_root.pass_2((0, 0));
         mut_root.debug_dims(0);
@@ -66,11 +51,7 @@ fn main() {
             let binding = root.clone();
             let root = binding.borrow();
             root.draw(&mut d);
-            let manual_event = MouseEvent {
-                pos: (20, 450),
-                left_button_down: true,
-            };
-            root.handle_mouse_event(mouse_event);
+            root.get_mouse_event_handlers(mouse_event);
         }
         let binding = root.clone();
         let mut mut_root = binding.borrow_mut();
@@ -78,8 +59,6 @@ fn main() {
             mut_root.pass_1((0, 0));
             mut_root.pass_2((0, 0));
         }
-        // root.draw(&mut d);
-        // draw_grid(&mut d, 1000, 1000, 50);
     }
 }
 
@@ -101,23 +80,73 @@ fn text_test(root: &Rc<RefCell<dyn Base>>) -> Rc<RefCell<dyn Base>> {
             false
         }))
         .build();
-    let btn = TextLayout::get_builder()
-        .bg_color(Color::PURPLE)
-        .content("CLICK ME!")
+
+    let btn = Layout::get_col_builder()
+        .children(vec![
+            TextLayout::get_builder()
+                .content("Button")
+                .font_size(24)
+                .bg_color(Color::BLUE)
+                .dim((Length::FIT, Length::FIT))
+                .padding((10, 10, 10, 10))
+                .build(),
+            Layout::get_row_builder()
+                .dim((Length::FILL, Length::FIT))
+                .bg_color(Color {
+                    r: 0,
+                    g: 0,
+                    b: 0,
+                    a: 0,
+                })
+                .main_align(Alignment::Center)
+                .gap(10)
+                .children(vec![
+                    TextLayout::get_builder()
+                        .content("No Propagate")
+                        .font_size(24)
+                        .bg_color(Color::PURPLE)
+                        .on_click(Box::new(|_mouse_event| {
+                            println!("Don't! Propagate!");
+                            false
+                        }))
+                        .wrap(false)
+                        .padding((10, 10, 10, 10))
+                        .build(),
+                    TextLayout::get_builder()
+                        .content("Propagate")
+                        .font_size(24)
+                        .bg_color(Color::BLACK)
+                        .padding((10, 10, 10, 10))
+                        .on_click(Box::new(|_mouse_event| {
+                            println!("Propagate!");
+                            true
+                        }))
+                        .build(),
+                ])
+                .build(),
+        ])
+        .cross_align(Alignment::Center)
+        .gap(20)
+        .dim((Length::PERCENT(50), Length::FIT))
+        .bg_color(Color::GREEN)
+        .padding((10, 10, 10, 10))
+        .dbg_name("test_button")
         .build();
+
     let div = Layout::get_col_builder()
         .children({
-            let mut x = ((0..5)
+            let mut children = vec![btn.clone() as Rc<RefCell<dyn Base>>];
+            let x = (0..5)
                 .map(|_| Rc::new(RefCell::new(text1.borrow().clone())) as Rc<RefCell<dyn Base>>)
-                .collect::<Vec<_>>());
-            x.push(btn.clone());
-            x
+                .collect::<Vec<_>>();
+            children.extend(x);
+            children
         })
         .bg_color(Color::DARKGRAY)
         .padding((10, 10, 10, 10))
         .dim((Length::FILL, Length::FILL))
         .gap(10)
-        .cross_align(ui::common::Alignment::Center)
+        .cross_align(Alignment::Start)
         .on_click(Box::new(|_mouse_event| {
             println!("Clicked the div!");
             false
@@ -126,6 +155,7 @@ fn text_test(root: &Rc<RefCell<dyn Base>>) -> Rc<RefCell<dyn Base>> {
         .build();
 
     let root_clone = root.clone();
+
     btn.borrow_mut().on_click(Box::new(move |_mouse_event| {
         let d = {
             let root_ref = root_clone.borrow();
@@ -134,146 +164,12 @@ fn text_test(root: &Rc<RefCell<dyn Base>>) -> Rc<RefCell<dyn Base>> {
         if d.is_some() {
             let d = d.unwrap();
 
-            d.borrow_mut().set_children(vec![
-                Rc::new(RefCell::new(text1.borrow().clone())) as Rc<RefCell<dyn Base>>
-            ])
+            d.borrow_mut()
+                .add_child(Rc::new(RefCell::new(text1.borrow().clone())) as Rc<RefCell<dyn Base>>)
         }
 
         false
     }));
+
     div
-}
-
-fn test() -> Rc<RefCell<dyn Base>> {
-    let text_builder = TextLayout::get_builder();
-
-    // let text1 = Text::new("Hello", 24);
-
-    let text1 = text_builder
-        .content("Hello")
-        .font_size(24)
-        .wrap(true)
-        .dim((Length::FIT, Length::FIT))
-        .build();
-
-    let text2 = RawText::new("World!", 24);
-    let text3 = RawText::new("This is a test.", 24);
-    let text4 = RawText::new("Of the emergency", 24);
-    let text5 = RawText::new("Broadcast system.", 24);
-
-    let row1 = Layout::get_row_builder()
-        .children(vec![text1, text2])
-        .bg_color(Color::DARKGRAY)
-        .padding((10, 10, 10, 10))
-        .gap(10)
-        .flex(2.0)
-        .build();
-
-    let boxes = vec![text3, text4, text5]
-        .iter()
-        .enumerate()
-        .map(|(i, t)| {
-            Layout::get_row_builder()
-                .children(vec![t.clone()])
-                .bg_color(Color::BLUE)
-                .dim((Length::FILL, Length::FILL))
-                .padding((5, 5, 5, 5))
-                .gap(5)
-                .flex((i + 1) as f32) // Example flex value
-                .build() as Rc<RefCell<dyn Base>>
-        })
-        .collect::<Vec<_>>();
-
-    let row2 = Layout::get_col_builder()
-        .children(boxes)
-        .bg_color(Color::RED)
-        .padding((10, 10, 10, 10))
-        .gap(10)
-        .flex(1.0)
-        .main_align(Alignment::Start)
-        .cross_align(Alignment::Center)
-        .build();
-
-    let col = Layout::get_col_builder()
-        .children(vec![row1, row2])
-        .bg_color(Color::GRAY)
-        .padding((20, 20, 50, 20))
-        .gap(20)
-        .build();
-
-    col
-}
-
-fn make_spiral(curr_depth: usize, max_depth: usize) -> Rc<RefCell<dyn Base>> {
-    let color = Color::new(0, 0, 0, 0);
-    let col_builder = Layout::get_col_builder().bg_color(color);
-    let row_builder = Layout::get_row_builder().bg_color(color);
-    if curr_depth == max_depth {
-        if curr_depth % 2 == 0 {
-            return row_builder
-                .clone()
-                .children(vec![RawText::new(&format!("{}", curr_depth), 12)])
-                .build();
-        } else {
-            return col_builder
-                .clone()
-                .children(vec![RawText::new(&format!("{}", curr_depth), 12)])
-                .build();
-        }
-    }
-
-    let child = make_spiral(curr_depth + 1, max_depth);
-    if curr_depth % 2 == 0 {
-        // even - row
-        let children = {
-            let mut c = vec![
-                col_builder
-                    .clone()
-                    .children(vec![RawText::new(&format!("{}", curr_depth), 12)])
-                    .build(),
-                child,
-            ];
-            if curr_depth % 4 == 3 || curr_depth % 4 == 2 {
-                c.reverse();
-            }
-            c
-        };
-        return row_builder.clone().children(children).build();
-    } else {
-        let col_child = row_builder.clone().bg_color(Color::LIME);
-        let children = {
-            let mut c = vec![
-                col_child
-                    .children(vec![RawText::new(&format!("{}", curr_depth), 12)])
-                    .build(),
-                child,
-            ];
-            if curr_depth % 4 == 3 || curr_depth % 4 == 2 {
-                c.reverse();
-            }
-            c
-        };
-
-        // odd - col
-        return col_builder
-            .clone()
-            .children(children)
-            .gap(2)
-            .bg_color(Color::new(0, 255, 0, 255))
-            .dim((Length::FILL, Length::FILL))
-            .build();
-    }
-}
-
-fn draw_grid(draw_handle: &mut RaylibDrawHandle, max_x: i32, max_y: i32, gap: i32) {
-    let mut x = 0;
-    let mut y = 0;
-    while x < max_x {
-        draw_handle.draw_line(x, 0, x, max_y, Color::PINK);
-        x += gap;
-    }
-    while y < max_y {
-        draw_handle.draw_line(0, y, max_x, y, Color::PINK);
-        y += gap;
-    }
 }

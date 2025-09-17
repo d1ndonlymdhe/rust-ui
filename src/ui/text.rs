@@ -6,11 +6,15 @@ pub struct RawText {
     pub content: String,
     pub font_size: i32,
     pub pos: (i32, i32),
+    pub dbg_name: String,
 }
 
 impl Base for RawText {
     fn set_pos(&mut self, pos: (i32, i32)) {
         self.pos = pos;
+    }
+    fn get_draw_pos(&self) -> (i32, i32) {
+        self.pos
     }
     fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
         draw_handle.draw_text(
@@ -55,9 +59,12 @@ impl Base for RawText {
     fn get_flex(&self) -> f32 {
         1.0
     }
+    fn add_child(&mut self, child: Rc<RefCell<dyn Base>>) {
+        ()
+    }
 
-    fn handle_mouse_event(&self, _mouse_event: MouseEvent) -> bool {
-        true
+    fn get_mouse_event_handlers(&self, _mouse_event: MouseEvent) -> Vec<String> {
+        Vec::new()
     }
     fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
         panic!("RawText cannot have children");
@@ -66,10 +73,14 @@ impl Base for RawText {
         panic!("RawText cannot have on_click");
     }
     fn get_id(&self) -> String {
-        "".to_string()
+        self.dbg_name.clone()
     }
     fn get_by_id(&self, _id: &str) -> Option<Rc<RefCell<dyn Base>>> {
         None
+    }
+    
+    fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
+        Rc::new(RefCell::new(|_mouse_event| true))
     }
 }
 
@@ -79,6 +90,7 @@ impl RawText {
             content: content.to_string(),
             font_size,
             pos: (0, 0),
+            dbg_name: generate_id(),
         }))
     }
 }

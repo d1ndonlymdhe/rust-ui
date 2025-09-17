@@ -21,18 +21,33 @@ pub enum Alignment {
     Center,
     End,
 }
-
+use uuid::Uuid;
 pub trait Base {
     fn set_pos(&mut self, pos: (i32, i32));
     fn draw(&self, draw_handle: &mut RaylibDrawHandle);
-    fn handle_mouse_event(&self, mouse_event: MouseEvent) -> bool;
+    fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String>;
+    fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
+        let f = self.get_on_click();
+        let mut f = f.borrow_mut();
+        f(mouse_event)
+    }
+    fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>;
     fn set_dim(&mut self, parent_draw_dim: (i32, i32));
     fn get_draw_dim(&self) -> (i32, i32);
+    fn get_draw_pos(&self) -> (i32, i32);
     fn pass_1(&mut self, parent_draw_dim: (i32, i32));
     fn pass_2(&mut self, parent_pos: (i32, i32));
     fn get_flex(&self) -> f32;
     fn debug_dims(&self, depth: usize);
     fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>);
+    fn get_children(&self) -> Vec<Rc<RefCell<dyn Base>>> {
+        Vec::new()
+    }
+    fn add_child(&mut self, child: Rc<RefCell<dyn Base>>) {
+        let mut children = self.get_children();
+        children.push(child);
+        self.set_children(children);
+    }
     fn on_click(&mut self, f: Box<dyn FnMut(MouseEvent) -> bool>);
     fn get_id(&self) -> String;
     fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>>;
@@ -85,4 +100,8 @@ pub fn get_draw_dim(
 pub fn tabbed_print(text: &str, depth: usize) {
     let indent = "  ".repeat(depth);
     println!("{}{}", indent, text);
+}
+
+pub fn generate_id() -> String {
+    Uuid::new_v4().to_string()
 }

@@ -7,7 +7,7 @@ use raylib::{
 };
 
 use crate::ui::{
-    common::{Alignment, Base, Direction, Length, MouseEvent, tabbed_print},
+    common::{Alignment, Base, Direction, Length, MouseEvent, generate_id, tabbed_print},
     layout,
 };
 
@@ -30,7 +30,7 @@ pub struct TextLayout {
     pub gap: i32,
     pub dbg_name: String,
     pub flex: f32,
-    pub on_click: Option<Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>>,
+    pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
 }
 
 pub struct TextLayoutProps {
@@ -45,7 +45,7 @@ impl TextLayoutProps {
                 wrap: true,
                 font_size: 24,
                 children: vec![],
-                dim: (Length::FILL, Length::FILL),
+                dim: (Length::FIT, Length::FIT),
                 draw_dim: (0, 0),
                 pos: (0, 0),
                 bg_color: Color::WHITE,
@@ -54,9 +54,9 @@ impl TextLayoutProps {
                 cross_align: Alignment::Start,
                 padding: (0, 0, 0, 0),
                 gap: 0,
-                dbg_name: "".into(),
+                dbg_name: generate_id(),
                 flex: 1.0,
-                on_click: None,
+                on_click: Rc::new(RefCell::new(|_mouse_event| true)),
             },
         }
     }
@@ -110,7 +110,7 @@ impl TextLayoutProps {
         self
     }
     pub fn on_click(mut self, f: Box<dyn FnMut(MouseEvent) -> bool>) -> Self {
-        self.layout.on_click = Some(Rc::new(RefCell::new(f)));
+        self.layout.on_click = Rc::new(RefCell::new(f));
         self
     }
 
@@ -153,10 +153,7 @@ impl TextLayoutProps {
                 gap: self.layout.gap,
                 dbg_name: self.layout.dbg_name.clone(),
                 flex: self.layout.flex,
-                on_click: match &self.layout.on_click {
-                    Some(f) => Some(f.clone()),
-                    None => None,
-                },
+                on_click: self.layout.on_click.clone(),
             },
         }
     }
@@ -183,10 +180,7 @@ impl TextLayout {
             gap: self.gap,
             dbg_name: self.dbg_name.clone(),
             flex: self.flex,
-            on_click: match &self.on_click {
-                Some(f) => Some(f.clone()),
-                None => None,
-            },
+            on_click: self.on_click.clone(),
         }
     }
 }
@@ -195,11 +189,17 @@ impl Base for TextLayout {
     fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
         ()
     }
+    fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
+        self.on_click.clone()
+    }
     fn on_click(&mut self, f: Box<dyn FnMut(MouseEvent) -> bool>) {
-        self.on_click = Some(Rc::new(RefCell::new(f)));
+        self.on_click = Rc::new(RefCell::new(f));
     }
     fn set_pos(&mut self, pos: (i32, i32)) {
         self.pos = pos;
+    }
+    fn get_draw_pos(&self) -> (i32, i32) {
+        self.pos
     }
     fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
         draw_handle.draw_rectangle(
@@ -217,8 +217,7 @@ impl Base for TextLayout {
     fn get_id(&self) -> String {
         self.dbg_name.clone()
     }
-    fn handle_mouse_event(&self, mouse_event: MouseEvent) -> bool {
-        let mut event_propagated = false;
+    fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String> {
         let mouse_pos = mouse_event.pos;
         let max_x = self.pos.0 + self.draw_dim.0;
         let max_y = self.pos.1 + self.draw_dim.1;
@@ -228,16 +227,9 @@ impl Base for TextLayout {
             && mouse_pos.1 as i32 >= self.pos.1
             && mouse_pos.1 as i32 <= max_y
         {
-            if let Some(f) = &self.on_click {
-                let f = f.clone();
-                let e = f.borrow_mut()(mouse_event);
-                if e {
-                    event_propagated = true;
-                }
-            }
-            event_propagated
+            return vec![self.dbg_name.clone()];
         } else {
-            true
+            return vec![];
         }
     }
 
@@ -251,6 +243,10 @@ impl Base for TextLayout {
             }
         }
         None
+    }
+
+    fn add_child(&mut self, _child: Rc<RefCell<dyn Base>>) {
+        ()
     }
 
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
