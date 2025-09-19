@@ -1,8 +1,9 @@
 mod ui {
     pub mod common;
     pub mod layout;
+    pub mod raw_text;
     pub mod root;
-    pub mod text;
+    pub mod text_input;
     pub mod text_layout;
 }
 
@@ -11,11 +12,12 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::vec;
 use ui::common::{Base, Length, MouseEvent};
+use ui::raw_text::RawText;
 use ui::root::Root;
-use ui::text::RawText;
 
-use crate::ui::common::Alignment;
+use crate::ui::common::{Alignment, KeyEvent};
 use crate::ui::layout::Layout;
+use crate::ui::text_input::TextInput;
 use crate::ui::text_layout::TextLayout;
 
 fn main() {
@@ -25,7 +27,7 @@ fn main() {
         .title("Rust UI Example")
         .build();
 
-    let root = Root::new(RawText::new("Loading", 20), (1000, 1000));
+    let root = Root::new(RawText::new("Loading", 20, (0, 0, 0, 0)), (1000, 1000));
     let test_element = text_test(&(root.clone() as Rc<RefCell<dyn Base>>)); // Pass root reference here
 
     {
@@ -41,17 +43,25 @@ fn main() {
         let mouse_pos = rl.get_mouse_position();
         let left_mouse_pressed = rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
 
+        let key = rl.get_key_pressed();
+        let shift_down = rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
+            || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
         let mut d = rl.begin_drawing(&thread);
 
+        if key.is_some() {
+            println!("Key pressed: {:?} shift_down: {}", key, shift_down);
+        }
         let mouse_event = MouseEvent {
             pos: (mouse_pos.x as i32, mouse_pos.y as i32),
             left_button_down: left_mouse_pressed,
         };
+        let key_event = KeyEvent { key, shift_down };
         {
             let binding = root.clone();
             let root = binding.borrow();
             root.draw(&mut d);
             root.get_mouse_event_handlers(mouse_event);
+            root.get_key_event_handlers(key_event);
         }
         let binding = root.clone();
         let mut mut_root = binding.borrow_mut();
@@ -71,14 +81,10 @@ fn text_test(root: &Rc<RefCell<dyn Base>>) -> Rc<RefCell<dyn Base>> {
         .font_size(24)
         .wrap(true)
         .bg_color(Color::GREEN)
-        .dim((Length::PERCENT(50), Length::FIT))
+        .dim((Length::FILL, Length::FIT))
         .cross_align(Alignment::Center)
         .flex(1.0)
         .padding((10, 10, 10, 10))
-        .on_click(Box::new(|_mouse_event| {
-            println!("Clicked the text!");
-            false
-        }))
         .build();
 
     let btn = Layout::get_col_builder()
@@ -88,10 +94,10 @@ fn text_test(root: &Rc<RefCell<dyn Base>>) -> Rc<RefCell<dyn Base>> {
                 .font_size(24)
                 .bg_color(Color::BLUE)
                 .dim((Length::FIT, Length::FIT))
-                .padding((10, 10, 10, 10))
+                // .padding((10, 10, 10, 10))
                 .build(),
             Layout::get_row_builder()
-                .dim((Length::FILL, Length::FIT))
+                .dim((Length::FIT, Length::FIT))
                 .bg_color(Color {
                     r: 0,
                     g: 0,
@@ -112,31 +118,30 @@ fn text_test(root: &Rc<RefCell<dyn Base>>) -> Rc<RefCell<dyn Base>> {
                         .wrap(false)
                         .padding((10, 10, 10, 10))
                         .build(),
-                    TextLayout::get_builder()
-                        .content("Propagate")
+                    TextInput::get_builder()
+                        .content("Hello how are you?")
+                        .dbg_name("text_input")
                         .font_size(24)
+                        .dim((Length::FIXED(200), Length::FIT))
                         .bg_color(Color::BLACK)
                         .padding((10, 10, 10, 10))
-                        .on_click(Box::new(|_mouse_event| {
-                            println!("Propagate!");
-                            true
-                        }))
+                        .on_click(Box::new(|_mouse_event| false))
                         .build(),
                 ])
                 .build(),
         ])
         .cross_align(Alignment::Center)
         .gap(20)
-        .dim((Length::PERCENT(50), Length::FIT))
+        .dim((Length::FILL, Length::FIT))
         .bg_color(Color::GREEN)
         .padding((10, 10, 10, 10))
-        .dbg_name("test_button")
         .build();
 
     let div = Layout::get_col_builder()
         .children({
             let mut children = vec![btn.clone() as Rc<RefCell<dyn Base>>];
-            let x = (0..5)
+            // let mut children = vec![];
+            let x = (0..10)
                 .map(|_| Rc::new(RefCell::new(text1.borrow().clone())) as Rc<RefCell<dyn Base>>)
                 .collect::<Vec<_>>();
             children.extend(x);
@@ -147,10 +152,6 @@ fn text_test(root: &Rc<RefCell<dyn Base>>) -> Rc<RefCell<dyn Base>> {
         .dim((Length::FILL, Length::FILL))
         .gap(10)
         .cross_align(Alignment::Start)
-        .on_click(Box::new(|_mouse_event| {
-            println!("Clicked the div!");
-            false
-        }))
         .dbg_name("test_div")
         .build();
 
@@ -163,11 +164,9 @@ fn text_test(root: &Rc<RefCell<dyn Base>>) -> Rc<RefCell<dyn Base>> {
         };
         if d.is_some() {
             let d = d.unwrap();
-
             d.borrow_mut()
                 .add_child(Rc::new(RefCell::new(text1.borrow().clone())) as Rc<RefCell<dyn Base>>)
         }
-
         false
     }));
 

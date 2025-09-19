@@ -195,20 +195,27 @@ impl Base for Layout {
         self.children.clone()
     }
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
+        // if (self.dbg_name == "test_button"){
+        //     println!("Setting dim for button");
+        // }
         let (draw_width, draw_height) =
             crate::ui::common::get_draw_dim(self.dim, parent_dim, &self.children, &self.direction);
         self.draw_dim = (
             draw_width
-                + self.padding.0
-                + self.padding.3
+                + match self.direction {
+                    Direction::Row => self.padding.0 + self.padding.2,
+                    Direction::Column => 0,
+                }
                 + self.gap
                     * match self.direction {
                         Direction::Row => self.children.len() as i32 - 1,
                         Direction::Column => 0,
                     },
             draw_height
-                + self.padding.1
-                + self.padding.2
+                + match self.direction {
+                    Direction::Column => self.padding.1 + self.padding.3,
+                    Direction::Row => 0,
+                }
                 + self.gap
                     * match self.direction {
                         Direction::Row => 0,
@@ -390,5 +397,19 @@ impl Base for Layout {
             }
         }
         None
+    }
+
+    fn get_key_event_handlers(&self, key_event: super::common::KeyEvent) -> Vec<String> {
+        let mut hit_children = Vec::new();
+        for child in self.children.iter() {
+            let child = child.clone();
+            let hit = child.borrow().get_key_event_handlers(key_event);
+            hit_children.extend(hit);
+        }
+        return hit_children;
+    }
+
+    fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(super::common::KeyEvent) -> bool>> {
+        Rc::new(RefCell::new(|_key_event| true))
     }
 }

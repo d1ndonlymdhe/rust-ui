@@ -7,6 +7,7 @@ pub struct RawText {
     pub font_size: i32,
     pub pos: (i32, i32),
     pub dbg_name: String,
+    pub padding: (i32, i32, i32, i32), // top, right, bottom, left
 }
 
 impl Base for RawText {
@@ -34,7 +35,10 @@ impl Base for RawText {
             let c_text = CString::new(self.content.as_str()).unwrap();
             width = raylib::ffi::MeasureText(c_text.as_ptr(), self.font_size);
         }
-        (width as i32, self.font_size as i32)
+        (
+            width + self.padding.0 + self.padding.2,
+            self.font_size + self.padding.1 + self.padding.3,
+        )
     }
     fn pass_1(&mut self, parent_draw_dim: (i32, i32)) {
         self.set_dim(parent_draw_dim);
@@ -78,18 +82,27 @@ impl Base for RawText {
     fn get_by_id(&self, _id: &str) -> Option<Rc<RefCell<dyn Base>>> {
         None
     }
-    
+
     fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
         Rc::new(RefCell::new(|_mouse_event| true))
+    }
+
+    fn get_key_event_handlers(&self, key_event: KeyEvent) -> Vec<String> {
+        vec![]
+    }
+
+    fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(KeyEvent) -> bool>> {
+        Rc::new(RefCell::new(|_key_event| true))
     }
 }
 
 impl RawText {
-    pub fn new(content: &str, font_size: i32) -> Rc<RefCell<Self>> {
+    pub fn new(content: &str, font_size: i32, padding: (i32, i32, i32, i32)) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             content: content.to_string(),
             font_size,
             pos: (0, 0),
+            padding,
             dbg_name: generate_id(),
         }))
     }

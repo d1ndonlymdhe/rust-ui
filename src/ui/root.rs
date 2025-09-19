@@ -29,9 +29,28 @@ impl Base for Root {
         let child = self.child.borrow();
         child.draw(draw_handle);
     }
+    fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(KeyEvent) -> bool>> {
+        Rc::new(RefCell::new(|_key_event| true))
+    }
+    fn get_key_event_handlers(&self, key_event: KeyEvent) -> Vec<String> {
+        let child = self.child.clone();
+        let hit_children = child.borrow().get_key_event_handlers(key_event);
+        for child_id in hit_children.iter() {
+            let child = self.get_by_id(&child_id);
+            if let Some(child) = child {
+                let child = child.borrow();
+                let propagate = child.execute_on_key(key_event);
+                if !propagate {
+                    break;
+                }
+            }
+        }
+        vec![]
+    }
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String> {
         let child = self.child.clone();
         let hit_children = child.borrow().get_mouse_event_handlers(mouse_event);
+
         for child_id in hit_children.iter() {
             let child = self.get_by_id(&child_id);
             if let Some(child) = child {
@@ -88,7 +107,6 @@ impl Base for Root {
         let child = self.child.clone();
 
         let is_target = {
-
             let borrowed_child = child.borrow();
             borrowed_child.get_id() == id
         };
@@ -105,7 +123,7 @@ impl Base for Root {
             child.borrow().get_by_id(id)
         }
     }
-    
+
     fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
         Rc::new(RefCell::new(|_mouse_event| true))
     }

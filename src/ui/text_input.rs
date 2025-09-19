@@ -7,14 +7,17 @@ use raylib::{
 };
 
 use crate::ui::{
-    common::{Alignment, Base, Direction, Length, MouseEvent, generate_id, tabbed_print},
+    common::{
+        Alignment, Base, Direction, KeyEvent, Length, MouseEvent, generate_id,
+        keyboard_key_to_char, shift_character, tabbed_print,
+    },
     raw_text::RawText,
 };
 
-pub struct TextLayout {
+pub struct TextInput {
     pub children: Vec<Rc<RefCell<dyn Base>>>,
 
-    pub content: String,
+    pub content: Rc<RefCell<String>>,
     pub font_size: i32,
     pub wrap: bool,
 
@@ -30,38 +33,89 @@ pub struct TextLayout {
     pub gap: i32,
     pub dbg_name: String,
     pub flex: f32,
+    pub def_on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
+    pub def_on_key: Rc<RefCell<dyn FnMut(KeyEvent) -> bool>>,
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
+    pub focused: Rc<RefCell<bool>>,
 }
 
-pub struct TextLayoutProps {
-    pub layout: TextLayout,
+pub struct TextInputProps {
+    pub layout: TextInput,
 }
 
-impl TextLayoutProps {
+impl TextInputProps {
     pub fn new() -> Self {
+        let focus_state = Rc::new(RefCell::new(false));
+        let text_content = Rc::new(RefCell::new(String::new()));
+        let mut text_input = TextInput {
+            content: text_content.clone(),
+            wrap: true,
+            font_size: 24,
+            children: vec![],
+            dim: (Length::FIT, Length::FIT),
+            draw_dim: (0, 0),
+            pos: (0, 0),
+            bg_color: Color::WHITE,
+            direction: Direction::Column,
+            main_align: Alignment::Start,
+            cross_align: Alignment::Start,
+            padding: (0, 0, 0, 0),
+            gap: 0,
+            dbg_name: generate_id(),
+            flex: 1.0,
+            def_on_click: Rc::new(RefCell::new(|_mouse_event| true)),
+            on_click: Rc::new(RefCell::new(|_mouse_event| true)),
+            def_on_key: Rc::new(RefCell::new(|_key_event| true)),
+            focused: focus_state.clone(),
+        };
+        let closure_focus_state = focus_state.clone();
+        text_input.def_on_click = Rc::new(RefCell::new(move |mouse_event: MouseEvent| {
+            println!(
+                "Click event: {:?} Focus State: {:?}",
+                mouse_event,
+                closure_focus_state.borrow()
+            );
+            if mouse_event.left_button_down {
+                closure_focus_state.replace(true);
+            }
+            true
+        }));
+        let closure_focus_state = focus_state.clone();
+        let closure_text_content = text_content.clone();
+        text_input.def_on_key = Rc::new(RefCell::new(move |key_event: KeyEvent| {
+            if let Some(key) = key_event.key {
+                println!(
+                    "Key event: {:?} Focus State: {:?}",
+                    key_event,
+                    closure_focus_state.borrow()
+                );
+                if *closure_focus_state.borrow() {
+                    match key {
+                        KeyboardKey::KEY_BACKSPACE => {
+                            let mut content = closure_text_content.borrow_mut();
+                            content.pop();
+                        }
+                        _ => {
+                            if let Some(c) = keyboard_key_to_char(key) {
+                                let mut c = c;
+                                let mut content = closure_text_content.borrow_mut();
+                                if key_event.shift_down {
+                                    c = shift_character(c);
+                                }
+                                content.push(c);
+                            }
+                        }
+                    }
+                }
+            }
+            true
+        }));
         Self {
-            layout: TextLayout {
-                content: "".into(),
-                wrap: true,
-                font_size: 24,
-                children: vec![],
-                dim: (Length::FIT, Length::FIT),
-                draw_dim: (0, 0),
-                pos: (0, 0),
-                bg_color: Color::WHITE,
-                direction: Direction::Column,
-                main_align: Alignment::Start,
-                cross_align: Alignment::Start,
-                padding: (0, 0, 0, 0),
-                gap: 0,
-                dbg_name: generate_id(),
-                flex: 1.0,
-                on_click: Rc::new(RefCell::new(|_mouse_event| true)),
-            },
+            layout: text_input.clone(),
         }
     }
-    pub fn content(mut self, content: &str) -> Self {
-        self.layout.content = content.into();
+    pub fn content(self, content: &str) -> Self {
+        self.layout.content.replace(content.into());
         self
     }
     pub fn font_size(mut self, size: i32) -> Self {
@@ -114,9 +168,9 @@ impl TextLayoutProps {
         self
     }
 
-    pub fn build(self) -> Rc<RefCell<TextLayout>> {
+    pub fn build(self) -> Rc<RefCell<TextInput>> {
         let layout = self.layout;
-        Rc::new(RefCell::new(TextLayout {
+        Rc::new(RefCell::new(TextInput {
             children: layout.children,
             content: layout.content,
             font_size: layout.font_size,
@@ -132,12 +186,15 @@ impl TextLayoutProps {
             gap: layout.gap,
             dbg_name: layout.dbg_name,
             flex: layout.flex,
+            def_on_click: layout.def_on_click,
+            focused: layout.focused,
+            def_on_key: layout.def_on_key,
             on_click: layout.on_click,
         }))
     }
     pub fn clone(&self) -> Self {
         Self {
-            layout: TextLayout {
+            layout: TextInput {
                 children: self.layout.children.clone(),
                 content: self.layout.content.clone(),
                 font_size: self.layout.font_size,
@@ -153,15 +210,18 @@ impl TextLayoutProps {
                 gap: self.layout.gap,
                 dbg_name: self.layout.dbg_name.clone(),
                 flex: self.layout.flex,
+                def_on_click: self.layout.def_on_click.clone(),
+                focused: self.layout.focused.clone(),
+                def_on_key: self.layout.def_on_key.clone(),
                 on_click: self.layout.on_click.clone(),
             },
         }
     }
 }
 
-impl TextLayout {
-    pub fn get_builder() -> TextLayoutProps {
-        TextLayoutProps::new()
+impl TextInput {
+    pub fn get_builder() -> TextInputProps {
+        TextInputProps::new()
     }
     pub fn clone(&self) -> Self {
         Self {
@@ -180,20 +240,23 @@ impl TextLayout {
             gap: self.gap,
             dbg_name: self.dbg_name.clone(),
             flex: self.flex,
+            def_on_click: self.def_on_click.clone(),
+            focused: self.focused.clone(),
+            def_on_key: self.def_on_key.clone(),
             on_click: self.on_click.clone(),
         }
     }
 }
 
-impl Base for TextLayout {
+impl Base for TextInput {
     fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
         ()
     }
     fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
         self.on_click.clone()
     }
-    fn on_click(&mut self, f: Box<dyn FnMut(MouseEvent) -> bool>) {
-        self.on_click = Rc::new(RefCell::new(f));
+    fn on_click(&mut self, _f: Box<dyn FnMut(MouseEvent) -> bool>) {
+        self.on_click = Rc::new(RefCell::new(_f));
     }
     fn set_pos(&mut self, pos: (i32, i32)) {
         self.pos = pos;
@@ -248,12 +311,24 @@ impl Base for TextLayout {
     fn add_child(&mut self, _child: Rc<RefCell<dyn Base>>) {
         ()
     }
-
+    fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
+        let mut user_fun = self.on_click.borrow_mut();
+        let mut def_fun = self.def_on_click.borrow_mut();
+        let r1 = def_fun(mouse_event);
+        let r2 = user_fun(mouse_event);
+        r1 && r2
+    }
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
-        self.children = vec![RawText::new(&self.content, self.font_size, self.padding)];
+        self.children = vec![RawText::new(
+            &self.content.borrow(),
+            self.font_size,
+            self.padding,
+        )];
         let content_width = unsafe {
-            let c_text = CString::new(self.content.as_str()).unwrap();
-            raylib::ffi::MeasureText(c_text.as_ptr(), self.font_size) + self.padding.0 + self.padding.2
+            let c_text = CString::new(self.content.borrow().as_str()).unwrap();
+            raylib::ffi::MeasureText(c_text.as_ptr(), self.font_size)
+                + self.padding.0
+                + self.padding.2
         };
         let (mut draw_width, mut draw_height) =
             crate::ui::common::get_draw_dim(self.dim, parent_dim, &self.children, &self.direction);
@@ -261,7 +336,7 @@ impl Base for TextLayout {
         if self.wrap {
             let max_width = draw_width - self.padding.0 - self.padding.2;
             if content_width > max_width {
-                let text_rows = get_text_rows(&self.content, max_width, self.font_size);
+                let text_rows = get_text_rows(&self.content.borrow(), max_width, self.font_size);
                 self.children = text_rows
                     .iter()
                     .map(|row| {
@@ -277,7 +352,7 @@ impl Base for TextLayout {
                 .iter()
                 .map(|child| child.borrow().get_draw_dim().0)
                 .max()
-                .unwrap()
+                .unwrap_or(0)
         }
         if self.dim.1 == Length::FIT {
             draw_height = self
@@ -288,10 +363,7 @@ impl Base for TextLayout {
                 + self.gap * (self.children.len() as i32 - 1);
         }
 
-        self.draw_dim = (
-            draw_width,  // + self.padding.0 + self.padding.2
-            draw_height, // + self.padding.1 + self.padding.3
-        );
+        self.draw_dim = (draw_width, draw_height);
     }
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
@@ -425,7 +497,7 @@ impl Base for TextLayout {
     fn debug_dims(&self, depth: usize) {
         tabbed_print(
             &format!(
-                "<layouttext width={} height={} x={} y={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} name='{}' flex={}>",
+                "<textinput width={} height={} x={} y={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} name='{}' flex={}>",
                 self.draw_dim.0,
                 self.draw_dim.1,
                 self.pos.0,
@@ -446,15 +518,15 @@ impl Base for TextLayout {
         for (_i, child) in self.children.iter().enumerate() {
             child.borrow().debug_dims(depth + 1);
         }
-        tabbed_print("</layouttext>", depth);
+        tabbed_print("</textinput>", depth);
     }
 
     fn get_key_event_handlers(&self, _key_event: super::common::KeyEvent) -> Vec<String> {
-        vec![]
+        return vec![self.dbg_name.clone()];
     }
 
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(super::common::KeyEvent) -> bool>> {
-        Rc::new(RefCell::new(|_key_event| true))
+        self.def_on_key.clone()
     }
 }
 
