@@ -70,13 +70,13 @@ impl TextInputProps {
         };
         let closure_focus_state = focus_state.clone();
         text_input.def_on_click = Rc::new(RefCell::new(move |mouse_event: MouseEvent| {
-            println!(
-                "Click event: {:?} Focus State: {:?}",
-                mouse_event,
-                closure_focus_state.borrow()
-            );
             if mouse_event.left_button_down {
                 closure_focus_state.replace(true);
+                println!(
+                    "Click event: {:?} Focus State: {:?}",
+                    mouse_event,
+                    closure_focus_state.borrow()
+                );
             }
             true
         }));
@@ -222,6 +222,12 @@ impl TextInputProps {
 impl TextInput {
     pub fn get_builder() -> TextInputProps {
         TextInputProps::new()
+    }
+    pub fn set_content(&self, content: &str) {
+        self.content.replace(content.into());
+    }
+    pub fn get_content(&self) -> String {
+        self.content.borrow().clone()
     }
     pub fn clone(&self) -> Self {
         Self {
