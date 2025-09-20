@@ -89,24 +89,24 @@ impl TextInputProps {
                     key_event,
                     closure_focus_state.borrow()
                 );
-                if *closure_focus_state.borrow() {
-                    match key {
-                        KeyboardKey::KEY_BACKSPACE => {
+                // if *closure_focus_state.borrow() {
+                match key {
+                    KeyboardKey::KEY_BACKSPACE => {
+                        let mut content = closure_text_content.borrow_mut();
+                        content.pop();
+                    }
+                    _ => {
+                        if let Some(c) = keyboard_key_to_char(key) {
+                            let mut c = c;
                             let mut content = closure_text_content.borrow_mut();
-                            content.pop();
-                        }
-                        _ => {
-                            if let Some(c) = keyboard_key_to_char(key) {
-                                let mut c = c;
-                                let mut content = closure_text_content.borrow_mut();
-                                if key_event.shift_down {
-                                    c = shift_character(c);
-                                }
-                                content.push(c);
+                            if key_event.shift_down {
+                                c = shift_character(c);
                             }
+                            content.push(c);
                         }
                     }
                 }
+                // }
             }
             true
         }));
@@ -533,6 +533,9 @@ impl Base for TextInput {
 
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(super::common::KeyEvent) -> bool>> {
         self.def_on_key.clone()
+    }
+    fn is_focusable(&self) -> bool {
+        true
     }
 }
 

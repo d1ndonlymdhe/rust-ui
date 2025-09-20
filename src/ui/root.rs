@@ -10,16 +10,11 @@ pub struct Root {
     pub child: Rc<RefCell<dyn Base>>,
     pub draw_dim: (i32, i32),
     pub pos: (i32, i32),
+    pub focused_id: Option<String>,
 }
 
-impl Base for Root {
-    fn get_draw_pos(&self) -> (i32, i32) {
-        self.pos
-    }
-    fn set_pos(&mut self, _pos: (i32, i32)) {
-        panic!("Root cannot have parent");
-    }
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
+impl Root {
+    pub fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
         draw_handle.clear_background(Color::BLACK);
         {
             let mut child_mut = self.child.borrow_mut();
@@ -29,58 +24,70 @@ impl Base for Root {
         let child = self.child.borrow();
         child.draw(draw_handle);
     }
-    fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(KeyEvent) -> bool>> {
-        Rc::new(RefCell::new(|_key_event| true))
-    }
-    fn get_key_event_handlers(&self, key_event: KeyEvent) -> Vec<String> {
-        let child = self.child.clone();
-        let hit_children = child.borrow().get_key_event_handlers(key_event);
-        for child_id in hit_children.iter() {
-            let child = self.get_by_id(&child_id);
-            if let Some(child) = child {
-                let child = child.borrow();
-                let propagate = child.execute_on_key(key_event);
-                if !propagate {
-                    break;
-                }
+
+    pub fn handle_key_event(&self, key_event: KeyEvent) {
+        // let child = self.child.clone();
+        // let hit_children = child.borrow().get_key_event_handlers(key_event);
+        // for child_id in hit_children.iter() {
+        //     let child = self.get_by_id(&child_id);
+        //     if let Some(child) = child {
+        //         let child = child.borrow();
+        //         let propagate = child.execute_on_key(key_event);
+        //         if !propagate {
+        //             break;
+        //         }
+        //     }
+        // }
+        // vec![]
+        if let Some(focused_id) = &self.focused_id {
+            if let Some(focused_child) = self.get_by_id(focused_id) {
+                let focused_child = focused_child.borrow();
+                focused_child.execute_on_key(key_event);
             }
         }
-        vec![]
     }
-    fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String> {
+    pub fn get_mouse_event_handlers(&mut self, mouse_event: MouseEvent) {
         let child = self.child.clone();
         let hit_children = child.borrow().get_mouse_event_handlers(mouse_event);
+
+        let mut focused_id = None;
 
         for child_id in hit_children.iter() {
             let child = self.get_by_id(&child_id);
             if let Some(child) = child {
                 let child = child.borrow();
                 let propagate = child.execute_on_click(mouse_event);
+                if child.is_focusable() && focused_id.is_none() {
+                    focused_id = Some(child_id.clone());
+                }
                 if !propagate {
                     break;
                 }
             }
         }
-        vec![]
+        self.focused_id = focused_id;
+        if self.focused_id.is_some() {
+            println!("Focused on {:?}", self.focused_id);
+        }
     }
-    fn on_click(&mut self, _f: Box<dyn FnMut(MouseEvent) -> bool>) {
+    pub fn on_click(&mut self, _f: Box<dyn FnMut(MouseEvent) -> bool>) {
         ()
     }
-    fn set_dim(&mut self, _parent_dim: (i32, i32)) {
+    pub fn set_dim(&mut self, _parent_dim: (i32, i32)) {
         panic!("Root cannot have parent");
     }
-    fn get_draw_dim(&self) -> (i32, i32) {
+    pub fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
     }
-    fn pass_1(&mut self, _parent_draw_dim: (i32, i32)) {
+    pub fn pass_1(&mut self, _parent_draw_dim: (i32, i32)) {
         let mut mut_child = self.child.borrow_mut();
         mut_child.set_dim(self.draw_dim);
         mut_child.pass_1(self.draw_dim);
     }
-    fn pass_2(&mut self, _parent_pos: (i32, i32)) {
+    pub fn pass_2(&mut self, _parent_pos: (i32, i32)) {
         self.child.borrow_mut().pass_2(self.pos);
     }
-    fn debug_dims(&self, depth: usize) {
+    pub fn debug_dims(&self, depth: usize) {
         tabbed_print(
             &format!(
                 "<root width={} height={} x={} y={} >",
@@ -91,19 +98,19 @@ impl Base for Root {
         self.child.borrow().debug_dims(depth + 1);
         tabbed_print("</root>", depth);
     }
-    fn get_flex(&self) -> f32 {
+    pub fn get_flex(&self) -> f32 {
         1.0
     }
-    fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>) {
+    pub fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>) {
         if children.len() != 1 {
             panic!("Root can only have one child");
         }
         self.child = children.into_iter().next().unwrap();
     }
-    fn get_id(&self) -> String {
+    pub fn get_id(&self) -> String {
         "root".to_string()
     }
-    fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>> {
+    pub fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>> {
         let child = self.child.clone();
 
         let is_target = {
@@ -124,7 +131,7 @@ impl Base for Root {
         }
     }
 
-    fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
+    pub fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
         Rc::new(RefCell::new(|_mouse_event| true))
     }
 }
@@ -135,6 +142,7 @@ impl Root {
             child,
             draw_dim: dim,
             pos: (0, 0),
+            focused_id: None,
         }))
     }
 }

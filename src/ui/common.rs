@@ -60,6 +60,9 @@ pub trait Base {
     fn on_click(&mut self, f: Box<dyn FnMut(MouseEvent) -> bool>);
     fn get_id(&self) -> String;
     fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>>;
+    fn is_focusable(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
