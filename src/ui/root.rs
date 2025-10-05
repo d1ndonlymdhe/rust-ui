@@ -39,7 +39,7 @@ impl Root {
         //     }
         // }
         // vec![]
-        println!("{:?}",self.focused_id);
+        // println!("Focused ID: {:?}", self.focused_id);
         if let Some(focused_id) = &self.focused_id {
             if let Some(focused_child) = self.get_by_id(focused_id) {
                 let focused_child = focused_child.borrow();
@@ -66,9 +66,8 @@ impl Root {
                 }
             }
         }
-        self.focused_id = focused_id;
-        if self.focused_id.is_some() {
-            println!("Focused on {:?}", self.focused_id);
+        if mouse_event.left_button_down {
+            self.focused_id = focused_id;
         }
     }
     pub fn on_click(&mut self, _f: Box<dyn FnMut(MouseEvent) -> bool>) {

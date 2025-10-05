@@ -84,11 +84,6 @@ impl TextInputProps {
         let closure_text_content = text_content.clone();
         text_input.def_on_key = Rc::new(RefCell::new(move |key_event: KeyEvent| {
             if let Some(key) = key_event.key {
-                println!(
-                    "Key event: {:?} Focus State: {:?}",
-                    key_event,
-                    closure_focus_state.borrow()
-                );
                 // if *closure_focus_state.borrow() {
                 match key {
                     KeyboardKey::KEY_BACKSPACE => {

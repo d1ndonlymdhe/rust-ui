@@ -37,11 +37,12 @@ fn main() {
     }
 
     let binding = root.clone();
-    let mut mut_root = binding.borrow_mut();
-    let chat_layout = chat_layout(&(root.clone()), chat_state.clone());
-    mut_root.set_children(vec![chat_layout]);
+    // let mut mut_root = binding.borrow_mut();
     while !rl.window_should_close() {
         {
+            let chat_layout = chat_layout(&(root.clone()), chat_state.clone());
+            let mut mut_root = binding.borrow_mut();
+            mut_root.set_children(vec![chat_layout]);
             mut_root.pass_1((0, 0));
             mut_root.pass_2((0, 0));
             // mut_root.debug_dims(0);
@@ -304,6 +305,7 @@ fn chat_layout(
                         Layout::get_row_builder()
                             .children(vec![
                                 TextInput::get_builder()
+                                    .dbg_name("TEXT_INPUT")
                                     .content("Type a message...")
                                     .font_size(20)
                                     .bg_color(Color::LIGHTGRAY)
