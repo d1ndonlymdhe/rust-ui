@@ -162,7 +162,10 @@ impl TextInputProps {
         self.layout.on_click = Rc::new(RefCell::new(f));
         self
     }
-
+    pub fn on_key(mut self, f: Box<dyn FnMut(KeyEvent) -> bool>) -> Self {
+        self.layout.def_on_key = Rc::new(RefCell::new(f));
+        self
+    }
     pub fn build(self) -> Rc<RefCell<TextInput>> {
         let layout = self.layout;
         Rc::new(RefCell::new(TextInput {

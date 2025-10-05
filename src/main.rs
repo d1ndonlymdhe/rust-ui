@@ -15,7 +15,7 @@ use ui::common::{Base, Length, MouseEvent};
 use ui::raw_text::RawText;
 use ui::root::Root;
 
-use crate::ui::common::{Alignment, KeyEvent};
+use crate::ui::common::{keyboard_key_to_char, shift_character, Alignment, KeyEvent};
 use crate::ui::layout::Layout;
 use crate::ui::text_input::TextInput;
 use crate::ui::text_layout::TextLayout;
@@ -99,6 +99,7 @@ struct ChatState {
     messages: Vec<ChatMessage>,
     my_id: String,
     current_user_id: String,
+    draft_message: String,
 }
 
 impl ChatState {
@@ -108,6 +109,7 @@ impl ChatState {
             messages: vec![],
             current_user_id: String::new(),
             my_id: "0".to_string(),
+            draft_message: String::from("Hi!"),
         }
     }
 
@@ -304,14 +306,40 @@ fn chat_layout(
                     messages.push(
                         Layout::get_row_builder()
                             .children(vec![
-                                TextInput::get_builder()
-                                    .dbg_name("TEXT_INPUT")
-                                    .content("Type a message...")
+                                {
+                                    let builder = TextInput::get_builder();
+                                    let builder = {
+                                        builder.content(closure_chat_state
+                                            .borrow()
+                                            .draft_message
+                                            .as_str())
+                                    };
+                                    builder.dbg_name("TEXT_INPUT")
                                     .font_size(20)
+                                    .on_key(Box::new(move |key_event| {
+                                        let mut chat_state = closure_chat_state.borrow_mut();
+                                        match key_event.key {
+                                            Some(KeyboardKey::KEY_BACKSPACE) => {
+                                                chat_state.draft_message.pop();
+                                            }
+                                            Some(key) => {
+                                                if let Some(c) = keyboard_key_to_char(key) {
+                                                    let mut c = c;
+                                                    if key_event.shift_down {
+                                                        c = shift_character(c);
+                                                    }
+                                                    chat_state.draft_message.push(c);
+                                                }
+                                            }
+                                            None => {}
+                                        }
+                                        true
+                                    }))
                                     .bg_color(Color::LIGHTGRAY)
                                     .dim((Length::FILL, Length::FIXED(40)))
                                     .flex(8.0)
-                                    .build(),
+                                    .build()
+                                },
                                 TextLayout::get_builder()
                                     .content("Send")
                                     .font_size(20)
@@ -320,23 +348,23 @@ fn chat_layout(
                                     .main_align(Alignment::Center)
                                     .cross_align(Alignment::Center)
                                     .flex(2.0)
-                                    .on_click(Box::new(move |_mouse_event| {
-                                        let input_box_borrowed = input_box.borrow();
-                                        let content = input_box_borrowed.get_content();
-                                        if content.trim().is_empty() {
-                                            return true;
-                                        }
-                                        let current_user_id =
-                                            closure_chat_state.borrow().current_user_id.clone();
-                                        let my_id = closure_chat_state.borrow().my_id.clone();
-                                        closure_chat_state.borrow_mut().add_message(
-                                            &content,
-                                            &my_id,
-                                            &current_user_id,
-                                        );
-                                        input_box_borrowed.set_content("");
-                                        true
-                                    }))
+                                    // .on_click(Box::new(move |_mouse_event| {
+                                    //     let input_box_borrowed = input_box.borrow();
+                                    //     let content = input_box_borrowed.get_content();
+                                    //     if content.trim().is_empty() {
+                                    //         return true;
+                                    //     }
+                                    //     let current_user_id =
+                                    //         closure_chat_state.borrow().current_user_id.clone();
+                                    //     let my_id = closure_chat_state.borrow().my_id.clone();
+                                    //     closure_chat_state.borrow_mut().add_message(
+                                    //         &content,
+                                    //         &my_id,
+                                    //         &current_user_id,
+                                    //     );
+                                    //     input_box_borrowed.set_content("");
+                                    //     true
+                                    // }))
                                     .build(),
                             ])
                             .dim((Length::FILL, Length::FIT))
