@@ -63,6 +63,10 @@ pub trait Base {
     fn is_focusable(&self) -> bool {
         false
     }
+    fn set_children_func(
+        &mut self,
+        f: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
+    );
 }
 
 #[derive(Clone, Copy, Debug)]

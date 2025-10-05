@@ -27,6 +27,7 @@ pub struct Layout {
     pub dbg_name: String,
     pub flex: f32,
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
+    pub children_func: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
 }
 
 pub struct LayoutProps {
@@ -50,6 +51,7 @@ impl LayoutProps {
                 dbg_name: self.layout.dbg_name.clone(),
                 flex: self.layout.flex,
                 on_click: self.layout.on_click.clone(),
+                children_func: self.layout.children_func.clone(),
             },
         }
     }
@@ -72,6 +74,7 @@ impl LayoutProps {
                 dbg_name: generate_id(),
                 flex: 1.0,
                 on_click: Rc::new(RefCell::new(|_mouse_event| true)),
+                children_func: None,
             },
         }
     }
@@ -119,6 +122,13 @@ impl LayoutProps {
         self.layout.on_click = Rc::new(RefCell::new(f));
         self
     }
+    pub fn children_func(
+        mut self,
+        f: Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>,
+    ) -> Self {
+        self.layout.children_func = Some(f);
+        self
+    }
     pub fn build(self) -> Rc<RefCell<Layout>> {
         let layout = self.layout;
         Rc::new(RefCell::new(Layout {
@@ -135,6 +145,7 @@ impl LayoutProps {
             dbg_name: layout.dbg_name.clone(),
             flex: layout.flex,
             on_click: layout.on_click.clone(),
+            children_func: layout.children_func.clone(),
         }))
     }
 }
@@ -149,6 +160,16 @@ impl Layout {
 }
 
 impl Base for Layout {
+    fn set_children_func(
+        &mut self,
+        f: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
+    ) {
+        if let Some(func) = f {
+            let children = func.borrow()();
+            self.set_children(children);
+        }
+    }
+
     fn set_pos(&mut self, pos: (i32, i32)) {
         self.pos = pos;
     }

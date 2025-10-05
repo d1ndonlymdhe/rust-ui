@@ -186,6 +186,12 @@ impl TextLayout {
 }
 
 impl Base for TextLayout {
+    fn set_children_func(
+        &mut self,
+        _f: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
+    ) {
+        panic!("TextLayout cannot have children");
+    }
     fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
         ()
     }
@@ -253,7 +259,9 @@ impl Base for TextLayout {
         self.children = vec![RawText::new(&self.content, self.font_size, self.padding)];
         let content_width = unsafe {
             let c_text = CString::new(self.content.as_str()).unwrap();
-            raylib::ffi::MeasureText(c_text.as_ptr(), self.font_size) + self.padding.0 + self.padding.2
+            raylib::ffi::MeasureText(c_text.as_ptr(), self.font_size)
+                + self.padding.0
+                + self.padding.2
         };
         let (mut draw_width, mut draw_height) =
             crate::ui::common::get_draw_dim(self.dim, parent_dim, &self.children, &self.direction);

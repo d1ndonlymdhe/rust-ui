@@ -94,6 +94,13 @@ impl Base for RawText {
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(KeyEvent) -> bool>> {
         Rc::new(RefCell::new(|_key_event| true))
     }
+
+    fn set_children_func(
+            &mut self,
+            _f: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
+        ) {
+            panic!("RawText cannot have children");
+    }
 }
 
 impl RawText {

@@ -36,12 +36,12 @@ fn main() {
         chat_state.borrow_mut().seed_messages();
     }
 
+    let binding = root.clone();
+    let mut mut_root = binding.borrow_mut();
+    let chat_layout = chat_layout(&(root.clone()), chat_state.clone());
+    mut_root.set_children(vec![chat_layout]);
     while !rl.window_should_close() {
         {
-            let chat_layout = chat_layout(&(root.clone()), chat_state.clone());
-            let binding = root.clone();
-            let mut mut_root = binding.borrow_mut();
-            mut_root.set_children(vec![chat_layout]);
             mut_root.pass_1((0, 0));
             mut_root.pass_2((0, 0));
             // mut_root.debug_dims(0);

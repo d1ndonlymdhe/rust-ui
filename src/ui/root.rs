@@ -39,6 +39,7 @@ impl Root {
         //     }
         // }
         // vec![]
+        println!("{:?}",self.focused_id);
         if let Some(focused_id) = &self.focused_id {
             if let Some(focused_child) = self.get_by_id(focused_id) {
                 let focused_child = focused_child.borrow();
