@@ -15,7 +15,7 @@ use ui::common::{Base, Length, MouseEvent};
 use ui::raw_text::RawText;
 use ui::root::Root;
 
-use crate::ui::common::{keyboard_key_to_char, shift_character, Alignment, KeyEvent};
+use crate::ui::common::{Alignment, KeyEvent, keyboard_key_to_char, shift_character};
 use crate::ui::layout::Layout;
 use crate::ui::text_input::TextInput;
 use crate::ui::text_layout::TextLayout;
@@ -37,15 +37,13 @@ fn main() {
     }
 
     let binding = root.clone();
-    // let mut mut_root = binding.borrow_mut();
     while !rl.window_should_close() {
         {
-            let chat_layout = chat_layout(&(root.clone()), chat_state.clone());
+            let chat_layout = chat_layout(chat_state.clone());
             let mut mut_root = binding.borrow_mut();
             mut_root.set_children(vec![chat_layout]);
             mut_root.pass_1((0, 0));
             mut_root.pass_2((0, 0));
-            // mut_root.debug_dims(0);
         }
         let mouse_pos = rl.get_mouse_position();
         let left_mouse_pressed = rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
@@ -63,22 +61,9 @@ fn main() {
             let binding = root.clone();
             let mut root = binding.borrow_mut();
             root.draw(&mut d);
-            // let mouse_event = MouseEvent {
-            //     pos: (260, 970),
-            //     left_button_down: true,
-            // };
-            // let key_event = KeyEvent {
-            //     key: Some(KeyboardKey::KEY_A),
-            //     shift_down: false,
-            // };
             root.get_mouse_event_handlers(mouse_event);
             root.handle_key_event(key_event);
         }
-        // {
-        //     let mut mut_root = root.borrow_mut();
-        //     mut_root.pass_1((0, 0));
-        //     mut_root.pass_2((0, 0));
-        // }
     }
 }
 
@@ -126,15 +111,6 @@ impl ChatState {
             sender_id: sender_id.to_string(),
             receiver_id: receiver_id.to_string(),
         });
-
-        //just for test, mirror message
-        if sender_id == self.my_id {
-            self.messages.push(ChatMessage {
-                content: format!("Echo: {}", content),
-                sender_id: receiver_id.to_string(),
-                receiver_id: sender_id.to_string(),
-            });
-        }
     }
 
     fn seed_users(&mut self) {
@@ -178,10 +154,7 @@ impl ChatState {
     }
 }
 
-fn chat_layout(
-    root: &Rc<RefCell<Root>>,
-    root_chat_state: Rc<RefCell<ChatState>>,
-) -> Rc<RefCell<dyn Base>> {
+fn chat_layout(root_chat_state: Rc<RefCell<ChatState>>) -> Rc<RefCell<dyn Base>> {
     let borrowed_root_chat_state = root_chat_state.borrow();
 
     let root_div = Layout::get_row_builder()
@@ -213,9 +186,7 @@ fn chat_layout(
                             a: 0,
                         })
                         .build() as Rc<RefCell<dyn Base>>;
-
                     let mut children = vec![header];
-                    // let users = borrowed_root_chat_state.users;
                     let users = borrowed_root_chat_state
                         .users
                         .iter()
@@ -225,7 +196,15 @@ fn chat_layout(
                             TextLayout::get_builder()
                                 .content(&user.name)
                                 .font_size(20)
-                                .bg_color(Color::LIGHTBLUE)
+                                .bg_color(
+                                    if root_chat_state.borrow().current_user_id
+                                        == user.id
+                                    {
+                                        Color::LIGHTGREEN
+                                    } else {
+                                        Color::LIGHTGRAY
+                                    },
+                                )
                                 .dim((Length::FILL, Length::FIXED(40)))
                                 .padding((10, 10, 10, 10))
                                 .on_click({
@@ -287,86 +266,79 @@ fn chat_layout(
                                 })
                                 .dim((Length::FILL, Length::FIT))
                                 .cross_align(if is_current_user {
-                                    Alignment::End
-                                } else {
                                     Alignment::Start
+                                } else {
+                                    Alignment::End
                                 })
                                 .build() as Rc<RefCell<dyn Base>>
                         })
                         .collect::<Vec<_>>();
 
-                    let input_box = TextInput::get_builder()
-                        .content("Type a message...")
-                        .font_size(20)
-                        .bg_color(Color::LIGHTGRAY)
-                        .dim((Length::FILL, Length::FIXED(40)))
-                        .flex(8.0)
-                        .build();
-                    let closure_chat_state = root_chat_state.clone();
+                    let input_box = {
+                        let closure_chat_state = root_chat_state.clone();
+                        let builder = TextInput::get_builder();
+                        let builder =
+                            { builder.content(closure_chat_state.borrow().draft_message.as_str()) };
+                        builder
+                            .dbg_name("TEXT_INPUT")
+                            .font_size(20)
+                            .on_key(Box::new(move |key_event| {
+                                let mut chat_state = closure_chat_state.borrow_mut();
+                                match key_event.key {
+                                    Some(KeyboardKey::KEY_BACKSPACE) => {
+                                        chat_state.draft_message.pop();
+                                    }
+                                    Some(key) => {
+                                        if let Some(c) = keyboard_key_to_char(key) {
+                                            let mut c = c;
+                                            if key_event.shift_down {
+                                                c = shift_character(c);
+                                            }
+                                            chat_state.draft_message.push(c);
+                                        }
+                                    }
+                                    None => {}
+                                }
+                                true
+                            }))
+                            .bg_color(Color::LIGHTGRAY)
+                            .dim((Length::FILL, Length::FIXED(40)))
+                            .flex(8.0)
+                            .build()
+                    };
+                    let send_button = {
+                        let closure_chat_state = root_chat_state.clone();
+                        let input_box = input_box.clone();
+                        TextLayout::get_builder()
+                            .content("Send")
+                            .font_size(20)
+                            .bg_color(Color::DARKGRAY)
+                            .dim((Length::FILL, Length::FIXED(40)))
+                            .main_align(Alignment::Center)
+                            .cross_align(Alignment::Center)
+                            .flex(2.0)
+                            .on_click(Box::new(move |_mouse_event| {
+                                let input_box_borrowed = input_box.borrow();
+                                let content = input_box_borrowed.get_content();
+                                if content.trim().is_empty() {
+                                    return true;
+                                }
+                                let current_user_id =
+                                    closure_chat_state.borrow().current_user_id.clone();
+                                let my_id = closure_chat_state.borrow().my_id.clone();
+                                closure_chat_state.borrow_mut().add_message(
+                                    &content,
+                                    &my_id,
+                                    &current_user_id,
+                                );
+                                input_box_borrowed.set_content("");
+                                true
+                            }))
+                            .build()
+                    };
                     messages.push(
                         Layout::get_row_builder()
-                            .children(vec![
-                                {
-                                    let builder = TextInput::get_builder();
-                                    let builder = {
-                                        builder.content(closure_chat_state
-                                            .borrow()
-                                            .draft_message
-                                            .as_str())
-                                    };
-                                    builder.dbg_name("TEXT_INPUT")
-                                    .font_size(20)
-                                    .on_key(Box::new(move |key_event| {
-                                        let mut chat_state = closure_chat_state.borrow_mut();
-                                        match key_event.key {
-                                            Some(KeyboardKey::KEY_BACKSPACE) => {
-                                                chat_state.draft_message.pop();
-                                            }
-                                            Some(key) => {
-                                                if let Some(c) = keyboard_key_to_char(key) {
-                                                    let mut c = c;
-                                                    if key_event.shift_down {
-                                                        c = shift_character(c);
-                                                    }
-                                                    chat_state.draft_message.push(c);
-                                                }
-                                            }
-                                            None => {}
-                                        }
-                                        true
-                                    }))
-                                    .bg_color(Color::LIGHTGRAY)
-                                    .dim((Length::FILL, Length::FIXED(40)))
-                                    .flex(8.0)
-                                    .build()
-                                },
-                                TextLayout::get_builder()
-                                    .content("Send")
-                                    .font_size(20)
-                                    .bg_color(Color::DARKGRAY)
-                                    .dim((Length::FILL, Length::FIXED(40)))
-                                    .main_align(Alignment::Center)
-                                    .cross_align(Alignment::Center)
-                                    .flex(2.0)
-                                    // .on_click(Box::new(move |_mouse_event| {
-                                    //     let input_box_borrowed = input_box.borrow();
-                                    //     let content = input_box_borrowed.get_content();
-                                    //     if content.trim().is_empty() {
-                                    //         return true;
-                                    //     }
-                                    //     let current_user_id =
-                                    //         closure_chat_state.borrow().current_user_id.clone();
-                                    //     let my_id = closure_chat_state.borrow().my_id.clone();
-                                    //     closure_chat_state.borrow_mut().add_message(
-                                    //         &content,
-                                    //         &my_id,
-                                    //         &current_user_id,
-                                    //     );
-                                    //     input_box_borrowed.set_content("");
-                                    //     true
-                                    // }))
-                                    .build(),
-                            ])
+                            .children(vec![input_box, send_button])
                             .dim((Length::FILL, Length::FIT))
                             .build() as Rc<RefCell<dyn Base>>,
                     );

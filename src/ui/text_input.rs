@@ -33,10 +33,8 @@ pub struct TextInput {
     pub gap: i32,
     pub dbg_name: String,
     pub flex: f32,
-    pub def_on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
     pub def_on_key: Rc<RefCell<dyn FnMut(KeyEvent) -> bool>>,
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
-    pub focused: Rc<RefCell<bool>>,
 }
 
 pub struct TextInputProps {
@@ -45,7 +43,6 @@ pub struct TextInputProps {
 
 impl TextInputProps {
     pub fn new() -> Self {
-        let focus_state = Rc::new(RefCell::new(false));
         let text_content = Rc::new(RefCell::new(String::new()));
         let mut text_input = TextInput {
             content: text_content.clone(),
@@ -63,28 +60,12 @@ impl TextInputProps {
             gap: 0,
             dbg_name: generate_id(),
             flex: 1.0,
-            def_on_click: Rc::new(RefCell::new(|_mouse_event| true)),
             on_click: Rc::new(RefCell::new(|_mouse_event| true)),
             def_on_key: Rc::new(RefCell::new(|_key_event| true)),
-            focused: focus_state.clone(),
         };
-        let closure_focus_state = focus_state.clone();
-        text_input.def_on_click = Rc::new(RefCell::new(move |mouse_event: MouseEvent| {
-            if mouse_event.left_button_down {
-                closure_focus_state.replace(true);
-                println!(
-                    "Click event: {:?} Focus State: {:?}",
-                    mouse_event,
-                    closure_focus_state.borrow()
-                );
-            }
-            true
-        }));
-        let closure_focus_state = focus_state.clone();
         let closure_text_content = text_content.clone();
         text_input.def_on_key = Rc::new(RefCell::new(move |key_event: KeyEvent| {
             if let Some(key) = key_event.key {
-                // if *closure_focus_state.borrow() {
                 match key {
                     KeyboardKey::KEY_BACKSPACE => {
                         let mut content = closure_text_content.borrow_mut();
@@ -101,7 +82,6 @@ impl TextInputProps {
                         }
                     }
                 }
-                // }
             }
             true
         }));
@@ -130,10 +110,6 @@ impl TextInputProps {
         self.layout.bg_color = color;
         self
     }
-    // pub fn direction(mut self, direction: Direction) -> Self {
-    //     self.layout.direction = direction;
-    //     self
-    // }
     pub fn main_align(mut self, align: Alignment) -> Self {
         self.layout.main_align = align;
         self
@@ -184,8 +160,6 @@ impl TextInputProps {
             gap: layout.gap,
             dbg_name: layout.dbg_name,
             flex: layout.flex,
-            def_on_click: layout.def_on_click,
-            focused: layout.focused,
             def_on_key: layout.def_on_key,
             on_click: layout.on_click,
         }))
@@ -208,8 +182,6 @@ impl TextInputProps {
                 gap: self.layout.gap,
                 dbg_name: self.layout.dbg_name.clone(),
                 flex: self.layout.flex,
-                def_on_click: self.layout.def_on_click.clone(),
-                focused: self.layout.focused.clone(),
                 def_on_key: self.layout.def_on_key.clone(),
                 on_click: self.layout.on_click.clone(),
             },
@@ -244,8 +216,6 @@ impl TextInput {
             gap: self.gap,
             dbg_name: self.dbg_name.clone(),
             flex: self.flex,
-            def_on_click: self.def_on_click.clone(),
-            focused: self.focused.clone(),
             def_on_key: self.def_on_key.clone(),
             on_click: self.on_click.clone(),
         }
@@ -324,10 +294,7 @@ impl Base for TextInput {
     }
     fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
         let mut user_fun = self.on_click.borrow_mut();
-        let mut def_fun = self.def_on_click.borrow_mut();
-        let r1 = def_fun(mouse_event);
-        let r2 = user_fun(mouse_event);
-        r1 && r2
+        user_fun(mouse_event)
     }
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
         self.children = vec![RawText::new(

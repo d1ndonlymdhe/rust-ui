@@ -26,20 +26,6 @@ impl Root {
     }
 
     pub fn handle_key_event(&self, key_event: KeyEvent) {
-        // let child = self.child.clone();
-        // let hit_children = child.borrow().get_key_event_handlers(key_event);
-        // for child_id in hit_children.iter() {
-        //     let child = self.get_by_id(&child_id);
-        //     if let Some(child) = child {
-        //         let child = child.borrow();
-        //         let propagate = child.execute_on_key(key_event);
-        //         if !propagate {
-        //             break;
-        //         }
-        //     }
-        // }
-        // vec![]
-        // println!("Focused ID: {:?}", self.focused_id);
         if let Some(focused_id) = &self.focused_id {
             if let Some(focused_child) = self.get_by_id(focused_id) {
                 let focused_child = focused_child.borrow();
@@ -70,15 +56,6 @@ impl Root {
             self.focused_id = focused_id;
         }
     }
-    pub fn on_click(&mut self, _f: Box<dyn FnMut(MouseEvent) -> bool>) {
-        ()
-    }
-    pub fn set_dim(&mut self, _parent_dim: (i32, i32)) {
-        panic!("Root cannot have parent");
-    }
-    pub fn get_draw_dim(&self) -> (i32, i32) {
-        self.draw_dim
-    }
     pub fn pass_1(&mut self, _parent_draw_dim: (i32, i32)) {
         let mut mut_child = self.child.borrow_mut();
         mut_child.set_dim(self.draw_dim);
@@ -98,17 +75,11 @@ impl Root {
         self.child.borrow().debug_dims(depth + 1);
         tabbed_print("</root>", depth);
     }
-    pub fn get_flex(&self) -> f32 {
-        1.0
-    }
     pub fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>) {
         if children.len() != 1 {
             panic!("Root can only have one child");
         }
         self.child = children.into_iter().next().unwrap();
-    }
-    pub fn get_id(&self) -> String {
-        "root".to_string()
     }
     pub fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>> {
         let child = self.child.clone();
@@ -129,10 +100,6 @@ impl Root {
         } else {
             child.borrow().get_by_id(id)
         }
-    }
-
-    pub fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
-        Rc::new(RefCell::new(|_mouse_event| true))
     }
 }
 
