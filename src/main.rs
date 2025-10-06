@@ -308,7 +308,6 @@ fn chat_layout(root_chat_state: Rc<RefCell<ChatState>>) -> Rc<RefCell<dyn Base>>
                     };
                     let send_button = {
                         let closure_chat_state = root_chat_state.clone();
-                        let input_box = input_box.clone();
                         TextLayout::get_builder()
                             .content("Send")
                             .font_size(20)
@@ -318,8 +317,7 @@ fn chat_layout(root_chat_state: Rc<RefCell<ChatState>>) -> Rc<RefCell<dyn Base>>
                             .cross_align(Alignment::Center)
                             .flex(2.0)
                             .on_click(Box::new(move |_mouse_event| {
-                                let input_box_borrowed = input_box.borrow();
-                                let content = input_box_borrowed.get_content();
+                                let content = closure_chat_state.borrow().draft_message.clone();
                                 if content.trim().is_empty() {
                                     return true;
                                 }
@@ -331,7 +329,7 @@ fn chat_layout(root_chat_state: Rc<RefCell<ChatState>>) -> Rc<RefCell<dyn Base>>
                                     &my_id,
                                     &current_user_id,
                                 );
-                                input_box_borrowed.set_content("");
+                                closure_chat_state.borrow_mut().draft_message.clear();
                                 true
                             }))
                             .build()

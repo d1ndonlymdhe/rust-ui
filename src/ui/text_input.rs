@@ -193,9 +193,6 @@ impl TextInput {
     pub fn get_builder() -> TextInputProps {
         TextInputProps::new()
     }
-    pub fn set_content(&self, content: &str) {
-        self.content.replace(content.into());
-    }
     pub fn get_content(&self) -> String {
         self.content.borrow().clone()
     }
