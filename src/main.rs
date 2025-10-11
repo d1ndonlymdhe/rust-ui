@@ -27,9 +27,9 @@ fn main() {
         .title("Rust UI Example")
         .build();
 
-    let root = Root::new(RawText::new("Loading", 20, (0, 0, 0, 0)), (1000, 1000));
+    let root = Root::new(RawText::new("Loading", 20, (0, 0, 0, 0), Color::BLACK), (1000, 1000));
     let chat_state = Rc::new(RefCell::new(ChatState::new()));
-    {
+    {   
         chat_state.borrow_mut().seed_users();
     }
     {

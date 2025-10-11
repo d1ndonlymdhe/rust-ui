@@ -35,6 +35,8 @@ pub struct TextInput {
     pub flex: f32,
     pub def_on_key: Rc<RefCell<dyn FnMut(KeyEvent) -> bool>>,
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
+
+    pub text_color: Color,
 }
 
 pub struct TextInputProps {
@@ -62,6 +64,7 @@ impl TextInputProps {
             flex: 1.0,
             on_click: Rc::new(RefCell::new(|_mouse_event| true)),
             def_on_key: Rc::new(RefCell::new(|_key_event| true)),
+            text_color: Color::BLACK,
         };
         let closure_text_content = text_content.clone();
         text_input.def_on_key = Rc::new(RefCell::new(move |key_event: KeyEvent| {
@@ -162,8 +165,15 @@ impl TextInputProps {
             flex: layout.flex,
             def_on_key: layout.def_on_key,
             on_click: layout.on_click,
+            text_color: layout.text_color,
         }))
     }
+
+    pub fn text_color(mut self, color: Color) -> Self {
+        self.layout.text_color = color;
+        self
+    }
+
     pub fn clone(&self) -> Self {
         Self {
             layout: TextInput {
@@ -184,6 +194,7 @@ impl TextInputProps {
                 flex: self.layout.flex,
                 def_on_key: self.layout.def_on_key.clone(),
                 on_click: self.layout.on_click.clone(),
+                text_color: self.layout.text_color,
             },
         }
     }
@@ -215,6 +226,7 @@ impl TextInput {
             flex: self.flex,
             def_on_key: self.def_on_key.clone(),
             on_click: self.on_click.clone(),
+            text_color: self.text_color.clone(),
         }
     }
 }
@@ -298,6 +310,7 @@ impl Base for TextInput {
             &self.content.borrow(),
             self.font_size,
             self.padding,
+            self.text_color,
         )];
         let content_width = unsafe {
             let c_text = CString::new(self.content.borrow().as_str()).unwrap();
@@ -315,7 +328,7 @@ impl Base for TextInput {
                 self.children = text_rows
                     .iter()
                     .map(|row| {
-                        RawText::new(row, self.font_size, self.padding) as Rc<RefCell<dyn Base>>
+                        RawText::new(row, self.font_size, self.padding,self.text_color) as Rc<RefCell<dyn Base>>
                     })
                     .collect();
             }

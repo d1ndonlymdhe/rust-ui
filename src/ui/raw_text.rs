@@ -8,6 +8,7 @@ pub struct RawText {
     pub pos: (i32, i32),
     pub dbg_name: String,
     pub padding: (i32, i32, i32, i32), // top, right, bottom, left
+    pub color: Color,
 }
 
 impl Base for RawText {
@@ -23,7 +24,7 @@ impl Base for RawText {
             self.pos.0,
             self.pos.1,
             self.font_size,
-            Color::WHITE,
+            self.color,
         );
     }
     fn set_dim(&mut self, _parent_draw_dim: (i32, i32)) {
@@ -104,13 +105,14 @@ impl Base for RawText {
 }
 
 impl RawText {
-    pub fn new(content: &str, font_size: i32, padding: (i32, i32, i32, i32)) -> Rc<RefCell<Self>> {
+    pub fn new(content: &str, font_size: i32, padding: (i32, i32, i32, i32),color: Color) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             content: content.to_string(),
             font_size,
             pos: (0, 0),
             padding,
             dbg_name: generate_id(),
+            color,
         }))
     }
 }

@@ -31,6 +31,8 @@ pub struct TextLayout {
     pub dbg_name: String,
     pub flex: f32,
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
+
+    pub text_color: Color,
 }
 
 pub struct TextLayoutProps {
@@ -57,6 +59,7 @@ impl TextLayoutProps {
                 dbg_name: generate_id(),
                 flex: 1.0,
                 on_click: Rc::new(RefCell::new(|_mouse_event| true)),
+                text_color: Color::BLACK
             },
         }
     }
@@ -81,10 +84,6 @@ impl TextLayoutProps {
         self.layout.bg_color = color;
         self
     }
-    // pub fn direction(mut self, direction: Direction) -> Self {
-    //     self.layout.direction = direction;
-    //     self
-    // }
     pub fn main_align(mut self, align: Alignment) -> Self {
         self.layout.main_align = align;
         self
@@ -114,6 +113,11 @@ impl TextLayoutProps {
         self
     }
 
+    pub fn text_color(mut self, color: Color) -> Self {
+        self.layout.text_color = color;
+        self
+    }
+
     pub fn build(self) -> Rc<RefCell<TextLayout>> {
         let layout = self.layout;
         Rc::new(RefCell::new(TextLayout {
@@ -133,6 +137,7 @@ impl TextLayoutProps {
             dbg_name: layout.dbg_name,
             flex: layout.flex,
             on_click: layout.on_click,
+            text_color: layout.text_color,
         }))
     }
     pub fn clone(&self) -> Self {
@@ -154,7 +159,9 @@ impl TextLayoutProps {
                 dbg_name: self.layout.dbg_name.clone(),
                 flex: self.layout.flex,
                 on_click: self.layout.on_click.clone(),
+                text_color: self.layout.text_color,
             },
+
         }
     }
 }
@@ -181,6 +188,7 @@ impl TextLayout {
             dbg_name: self.dbg_name.clone(),
             flex: self.flex,
             on_click: self.on_click.clone(),
+            text_color: self.text_color,
         }
     }
 }
@@ -256,7 +264,7 @@ impl Base for TextLayout {
     }
 
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
-        self.children = vec![RawText::new(&self.content, self.font_size, self.padding)];
+        self.children = vec![RawText::new(&self.content, self.font_size, self.padding,self.text_color)];
         let content_width = unsafe {
             let c_text = CString::new(self.content.as_str()).unwrap();
             raylib::ffi::MeasureText(c_text.as_ptr(), self.font_size)
@@ -273,7 +281,7 @@ impl Base for TextLayout {
                 self.children = text_rows
                     .iter()
                     .map(|row| {
-                        RawText::new(row, self.font_size, self.padding) as Rc<RefCell<dyn Base>>
+                        RawText::new(row, self.font_size, self.padding,self.text_color) as Rc<RefCell<dyn Base>>
                     })
                     .collect();
             }
