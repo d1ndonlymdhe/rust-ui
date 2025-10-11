@@ -186,6 +186,24 @@ pub fn keyboard_key_to_char(key: KeyboardKey) -> Option<char> {
     }
 }
 
+
+pub fn def_key_handler(key_event: KeyEvent,text: &mut String) -> bool {
+    if let Some(key) = key_event.key {
+        if key == KeyboardKey::KEY_BACKSPACE {
+            text.pop();
+            return true;
+        }
+        if let Some(mut c) = keyboard_key_to_char(key) {
+            if key_event.shift_down {
+                c = shift_character(c);
+            }
+            text.push(c);
+            return true;
+        }
+    }
+    false
+}
+
 pub fn shift_character(c: char) -> char {
     match c {
         'a'..='z' => ((c as u8) - 32) as char,
@@ -214,3 +232,5 @@ pub fn shift_character(c: char) -> char {
         _ => c,
     }
 }
+
+pub type Component = Rc<RefCell<dyn Base>>;
