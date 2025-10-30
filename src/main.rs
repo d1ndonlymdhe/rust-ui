@@ -44,7 +44,7 @@ fn main() {
 
     let binding = root.clone();
     let mut scroll_top = 0.0;
-    let scroll_height = 10.0 + 99.0 * 50.0 + 40.0;
+    let scroll_height = 10.0 + 99.0 * 50.0 + 30.0;
     let container_height = 500.0;
     let container_width = 400.0;
     let container_y = 40.0;
@@ -90,30 +90,36 @@ fn draw_rectangle(
     let Y_MAX = container_y + container_height;
     let height = 40;
     let bottom_y = y + height;
+
+    let top_in = y >= Y_MIN && y <= Y_MAX;
+    let bottom_in = bottom_y >= Y_MIN && bottom_y <= Y_MAX;
+
     //completely in view
-    if y >= Y_MIN && bottom_y <= Y_MAX {
+    if top_in && bottom_in {
         d.draw_rectangle(x, y, 200, height, Color::BLUE);
         d.draw_text(&index.to_string(), x + 5, y + 5, 10, Color::WHITE);
-    }
-    // completely out
-    if bottom_y > Y_MAX || y > Y_MAX {
         return;
     }
 
+
     // partially out top
-    if y < Y_MIN {
+    if !top_in && bottom_in {
         let visible_height = bottom_y - Y_MIN;
         d.draw_rectangle(x, Y_MIN, 200, visible_height, Color::BLUE);
         d.draw_text(&index.to_string(), x + 5, Y_MIN + 5, 10, Color::WHITE);
+        return;
     }
 
     // partially out bottom
-    if bottom_y > Y_MAX {
+    if top_in && !bottom_in {
         println!("Partially out bottom: {}", index);
         let visible_height = Y_MAX - y;
         d.draw_rectangle(x, y, 200, visible_height, Color::BLUE);
         d.draw_text(&index.to_string(), x + 5, y + 5, 10, Color::WHITE);
     }
+
+    // completely out of view
+    return;
 }
 
 #[derive(Clone)]
