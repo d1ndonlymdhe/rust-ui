@@ -15,17 +15,14 @@ use ui::common::{Length, MouseEvent};
 use ui::raw_text::RawText;
 use ui::root::Root;
 
-use crate::ui::common::{def_key_handler, Alignment, Component, KeyEvent};
+use crate::ui::common::{Alignment, Component, KeyEvent, def_key_handler};
 use crate::ui::layout::Layout;
 use crate::ui::text_input::TextInput;
 use crate::ui::text_layout::TextLayout;
 
-
-
 lazy_static! {
     static ref CHAT_STATE: Arc<Mutex<ChatState>> = Arc::new(Mutex::new(ChatState::new()));
 }
-
 
 fn main() {
     println!("Hello, world!");
@@ -34,8 +31,11 @@ fn main() {
         .title("Rust UI Example")
         .build();
 
-    let root = Root::new(RawText::new("Loading", 20, (0, 0, 0, 0), Color::BLACK), (1000, 1000));
-    {   
+    let root = Root::new(
+        RawText::new("Loading", 20, (0, 0, 0, 0), Color::BLACK),
+        (1000, 1000),
+    );
+    {
         CHAT_STATE.lock().unwrap().seed_users();
     }
     {
@@ -43,33 +43,76 @@ fn main() {
     }
 
     let binding = root.clone();
-    while !rl.window_should_close() {
-        {
-            let chat_layout = chat_layout();
-            let mut mut_root = binding.borrow_mut();
-            mut_root.set_children(vec![chat_layout]);
-            mut_root.pass_1((0, 0));
-            mut_root.pass_2((0, 0));
-        }
-        let mouse_pos = rl.get_mouse_position();
-        let left_mouse_pressed = rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
+    let mut scroll_top = 0.0;
+    let scroll_height = 10.0 + 99.0 * 50.0 + 40.0;
+    let container_height = 500.0;
+    let container_width = 400.0;
+    let container_y = 40.0;
+    let container_x = 40.0;
 
-        let key = rl.get_key_pressed();
-        let shift_down = rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
-            || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
+    while !rl.window_should_close() {
         let mut d = rl.begin_drawing(&thread);
-        let mouse_event = MouseEvent {
-            pos: (mouse_pos.x as i32, mouse_pos.y as i32),
-            left_button_down: left_mouse_pressed,
-        };
-        let key_event = KeyEvent { key, shift_down };
-        {
-            let binding = root.clone();
-            let mut root = binding.borrow_mut();
-            root.draw(&mut d);
-            root.get_mouse_event_handlers(mouse_event);
-            root.handle_key_event(key_event);
+        d.clear_background(Color::WHITE);
+        d.draw_rectangle(
+            container_x as i32,
+            container_y as i32,
+            container_width as i32,
+            container_height as i32,
+            Color::RED,
+        );
+        for i in 0..100 {
+            draw_rectangle(
+                &mut d,
+                i,
+                scroll_top as i32,
+                container_y as i32,
+                container_x as i32,
+                container_height as i32,
+            );
         }
+        let scroll_y = d.get_mouse_wheel_move_v().y;
+        scroll_top = (scroll_top as f32 - scroll_y * 20.0)
+            .clamp(0.0, scroll_height - container_height) as f32;
+    }
+}
+
+fn draw_rectangle(
+    d: &mut RaylibDrawHandle,
+    index: i32,
+    scroll_top: i32,
+    container_y: i32,
+    container_x: i32,
+    container_height: i32,
+) {
+    let y = container_y + index * 50 - scroll_top;
+    let x = container_x;
+    let Y_MIN = container_y;
+    let Y_MAX = container_y + container_height;
+    let height = 40;
+    let bottom_y = y + height;
+    //completely in view
+    if y >= Y_MIN && bottom_y <= Y_MAX {
+        d.draw_rectangle(x, y, 200, height, Color::BLUE);
+        d.draw_text(&index.to_string(), x + 5, y + 5, 10, Color::WHITE);
+    }
+    // completely out
+    if bottom_y > Y_MAX || y > Y_MAX {
+        return;
+    }
+
+    // partially out top
+    if y < Y_MIN {
+        let visible_height = bottom_y - Y_MIN;
+        d.draw_rectangle(x, Y_MIN, 200, visible_height, Color::BLUE);
+        d.draw_text(&index.to_string(), x + 5, Y_MIN + 5, 10, Color::WHITE);
+    }
+
+    // partially out bottom
+    if bottom_y > Y_MAX {
+        println!("Partially out bottom: {}", index);
+        let visible_height = Y_MAX - y;
+        d.draw_rectangle(x, y, 200, visible_height, Color::BLUE);
+        d.draw_text(&index.to_string(), x + 5, y + 5, 10, Color::WHITE);
     }
 }
 
@@ -160,21 +203,22 @@ impl ChatState {
     }
 }
 
-
 fn users_header() -> Component {
     Layout::get_row_builder()
-        .children(vec![TextLayout::get_builder()
-            .content("Users:")
-            .font_size(24)
-            .bg_color(Color {
-                r: 100,
-                g: 100,
-                b: 255,
-                a: 255,
-            })
-            .dim((Length::FIT, Length::FIT))
-            .padding((10, 10, 10, 10))
-            .build() as Component])
+        .children(vec![
+            TextLayout::get_builder()
+                .content("Users:")
+                .font_size(24)
+                .bg_color(Color {
+                    r: 100,
+                    g: 100,
+                    b: 255,
+                    a: 255,
+                })
+                .dim((Length::FIT, Length::FIT))
+                .padding((10, 10, 10, 10))
+                .build() as Component,
+        ])
         .dim((Length::FILL, Length::FIT))
         .main_align(Alignment::Center)
         .bg_color(Color {
@@ -185,7 +229,6 @@ fn users_header() -> Component {
         })
         .build() as Component
 }
-
 
 fn users_component() -> Vec<Component> {
     let (users_to_display, my_id, current_user_id) = {
@@ -205,19 +248,16 @@ fn users_component() -> Vec<Component> {
             TextLayout::get_builder()
                 .content(&user.name)
                 .font_size(20)
-                .bg_color(
-                    if current_user_id == user.id {
-                        Color::LIGHTGREEN
-                    } else {
-                        Color::LIGHTGRAY
-                    }
-                )
+                .bg_color(if current_user_id == user.id {
+                    Color::LIGHTGREEN
+                } else {
+                    Color::LIGHTGRAY
+                })
                 .dim((Length::FILL, Length::FIXED(40)))
                 .padding((10, 10, 10, 10))
                 .on_click({
                     Box::new(move |_mouse_event: MouseEvent| {
-                        CHAT_STATE.lock().unwrap().current_user_id =
-                            user_id.clone();
+                        CHAT_STATE.lock().unwrap().current_user_id = user_id.clone();
                         true
                     })
                 })
@@ -226,7 +266,7 @@ fn users_component() -> Vec<Component> {
         .collect::<Vec<_>>()
 }
 
-fn message_component(content:String,is_current_user:bool) -> Component {
+fn message_component(content: String, is_current_user: bool) -> Component {
     Layout::get_col_builder()
         .children(vec![
             TextLayout::get_builder()
@@ -257,14 +297,14 @@ fn message_component(content:String,is_current_user:bool) -> Component {
         .build() as Component
 }
 
-
 fn input_box_component() -> Component {
     let draft_message = {
         let chat_state = CHAT_STATE.lock().unwrap();
         chat_state.draft_message.clone()
     };
     let builder = TextInput::get_builder();
-    let builder = builder.content(&draft_message)
+    let builder = builder
+        .content(&draft_message)
         .dbg_name("TEXT_INPUT")
         .font_size(20)
         .on_key(Box::new(move |key_event| {
@@ -276,7 +316,7 @@ fn input_box_component() -> Component {
         .dim((Length::FILL, Length::FIXED(40)))
         .flex(8.0)
         .build();
-        builder
+    builder
 }
 
 fn send_button_component() -> Component {
@@ -304,7 +344,6 @@ fn send_button_component() -> Component {
 }
 
 fn messages_component() -> Vec<Component> {
-
     let messages_data = {
         let chat_state = CHAT_STATE.lock().unwrap();
         let messages = chat_state.get_current_messages();
@@ -315,20 +354,18 @@ fn messages_component() -> Vec<Component> {
                 (msg.content.clone(), is_current_user)
             })
             .collect::<Vec<_>>()
-    }; 
+    };
 
     messages_data
         .iter()
-        .map(|(content, is_current_user)| {
-            message_component(content.clone(), *is_current_user)
-        })
+        .map(|(content, is_current_user)| message_component(content.clone(), *is_current_user))
         .collect::<Vec<_>>()
 }
 
 fn input_row_component() -> Component {
     let input_box = input_box_component();
     let send_button = send_button_component();
-    
+
     Layout::get_row_builder()
         .children(vec![input_box, send_button])
         .dim((Length::FILL, Length::FIT))
@@ -340,7 +377,7 @@ fn left_sidebar_component() -> Component {
     let mut children = vec![header];
     let users = users_component();
     children.extend(users);
-    
+
     Layout::get_col_builder()
         .children(children)
         .dim((Length::FILL, Length::FILL))
@@ -355,7 +392,7 @@ fn chat_area_component() -> Component {
     let mut messages = messages_component();
     let input_row = input_row_component();
     messages.push(input_row);
-    
+
     Layout::get_col_builder()
         .dim((Length::FILL, Length::FILL))
         .bg_color(Color::BLUE)
@@ -368,7 +405,7 @@ fn chat_area_component() -> Component {
 fn chat_layout() -> Component {
     let left_sidebar = left_sidebar_component();
     let chat_area = chat_area_component();
-    
+
     Layout::get_row_builder()
         .dim((Length::FILL, Length::FILL))
         .children(vec![left_sidebar, chat_area])
