@@ -95,31 +95,52 @@ fn draw_rectangle(
     let bottom_in = bottom_y >= Y_MIN && bottom_y <= Y_MAX;
 
     //completely in view
-    if top_in && bottom_in {
-        d.draw_rectangle(x, y, 200, height, Color::BLUE);
-        d.draw_text(&index.to_string(), x + 5, y + 5, 10, Color::WHITE);
-        return;
+    let (draw_y, visible_height) = if top_in && bottom_in {
+        (y, height)
     }
-
-
     // partially out top
-    if !top_in && bottom_in {
-        let visible_height = bottom_y - Y_MIN;
-        d.draw_rectangle(x, Y_MIN, 200, visible_height, Color::BLUE);
-        d.draw_text(&index.to_string(), x + 5, Y_MIN + 5, 10, Color::WHITE);
-        return;
+    else if !top_in && bottom_in {
+        (Y_MIN, bottom_y - Y_MIN)
     }
-
     // partially out bottom
-    if top_in && !bottom_in {
-        println!("Partially out bottom: {}", index);
-        let visible_height = Y_MAX - y;
-        d.draw_rectangle(x, y, 200, visible_height, Color::BLUE);
-        d.draw_text(&index.to_string(), x + 5, y + 5, 10, Color::WHITE);
+    else if top_in && !bottom_in {
+        (y, Y_MAX - y)
+    } else {
+        (0, 0)
+    };
+    if visible_height > 0 {
+        d.draw_rectangle(x, draw_y, 300, visible_height, Color::BLUE);
+        draw_text(
+            d,
+            &format!("Item {}", index),
+            container_y,
+            container_height,
+            x,
+            y+20,
+            10,
+            Color::WHITE,
+        );
     }
+}
 
-    // completely out of view
-    return;
+fn draw_text(
+    d: &mut RaylibDrawHandle,
+    text: &str,
+    container_y: i32,
+    container_height: i32,
+    x: i32,
+    y: i32,
+    font_size: i32,
+    color: Color,
+) {
+    let Y_MIN = container_y;
+    let Y_MAX = container_y + container_height;
+    let bottom_y = y + font_size;
+    let top_in = y >= Y_MIN && y <= Y_MAX;
+    let bottom_in = bottom_y >= Y_MIN && bottom_y <= Y_MAX;
+    if top_in && bottom_in {
+        d.draw_text(text, x, y, font_size, color);
+    }
 }
 
 #[derive(Clone)]
