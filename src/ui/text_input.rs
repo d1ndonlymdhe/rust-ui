@@ -8,7 +8,7 @@ use raylib::{
 
 use crate::ui::{
     common::{
-        Alignment, Base, Direction, KeyEvent, Length, MouseEvent, generate_id,
+        Alignment, Base, Direction, ID, KeyEvent, Length, MouseEvent, generate_id,
         keyboard_key_to_char, shift_character, tabbed_print,
     },
     raw_text::RawText,
@@ -31,7 +31,7 @@ pub struct TextInput {
     pub main_align: Alignment,
     pub cross_align: Alignment,
     pub gap: i32,
-    pub dbg_name: String,
+    pub dbg_name: ID,
     pub flex: f32,
     pub def_on_key: Rc<RefCell<dyn FnMut(KeyEvent) -> bool>>,
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
@@ -61,7 +61,7 @@ impl TextInputProps {
             cross_align: Alignment::Start,
             padding: (0, 0, 0, 0),
             gap: 0,
-            dbg_name: generate_id(),
+            dbg_name: ID::Auto("".to_string()),
             flex: 1.0,
             on_click: Rc::new(RefCell::new(|_mouse_event| true)),
             def_on_key: Rc::new(RefCell::new(|_key_event| true)),
@@ -132,7 +132,7 @@ impl TextInputProps {
         self
     }
     pub fn dbg_name(mut self, name: &str) -> Self {
-        self.layout.dbg_name = name.into();
+        self.layout.dbg_name = ID::Manual(name.into());
         self
     }
     pub fn flex(mut self, flex: f32) -> Self {
@@ -281,7 +281,10 @@ impl Base for TextInput {
         }
     }
     fn get_id(&self) -> String {
-        self.dbg_name.clone()
+        match &self.dbg_name {
+            ID::Auto(name) => name.clone(),
+            ID::Manual(name) => name.clone(),
+        }
     }
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String> {
         let mouse_pos = mouse_event.pos;
@@ -293,7 +296,7 @@ impl Base for TextInput {
             && mouse_pos.1 as i32 >= self.pos.1
             && mouse_pos.1 as i32 <= max_y
         {
-            return vec![self.dbg_name.clone()];
+            return vec![self.get_id()];
         } else {
             return vec![];
         }
@@ -369,13 +372,14 @@ impl Base for TextInput {
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
     }
-    fn pass_1(&mut self, parent_draw_dim: (i32, i32)) {
+    fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
         let child_len = self.children.len() as i32;
         let total_flex = self
             .children
             .iter()
             .map(|child| child.borrow().get_flex())
             .sum::<f32>();
+        let mut ret_id = id;
         for child in self.children.iter() {
             let flex = child.borrow().get_flex();
             match self.direction {
@@ -385,7 +389,7 @@ impl Base for TextInput {
                     let child_width = f32::round(flex * (allowed_width as f32 / total_flex)) as i32;
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.borrow_mut().set_dim((child_width, child_height));
-                    child.borrow_mut().pass_1((child_width, child_height));
+                    ret_id = child.borrow_mut().pass_1((child_width, child_height),ret_id+1);
                 }
                 Direction::Column => {
                     let allowed_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
@@ -394,11 +398,17 @@ impl Base for TextInput {
                         f32::round(flex * (allowed_height as f32 / total_flex)) as i32;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     child.borrow_mut().set_dim((child_width, child_height));
-                    child.borrow_mut().pass_1((child_width, child_height));
+                    ret_id = child.borrow_mut().pass_1((child_width, child_height),ret_id+1);
                 }
             }
         }
+
         self.set_dim(parent_draw_dim);
+        ret_id = ret_id + 1;
+        if let ID::Auto(_) = &self.dbg_name {
+            self.dbg_name = ID::Auto(ret_id.to_string());
+        }
+        ret_id
     }
     fn pass_2(&mut self, passed_pos: (i32, i32)) {
         let mut padding_left = self.padding.0;
@@ -511,7 +521,7 @@ impl Base for TextInput {
                 self.direction,
                 self.main_align,
                 self.cross_align,
-                self.dbg_name,
+                self.get_id(),
                 self.flex
             ),
             depth,
@@ -523,7 +533,7 @@ impl Base for TextInput {
     }
 
     fn get_key_event_handlers(&self, _key_event: super::common::KeyEvent) -> Vec<String> {
-        return vec![self.dbg_name.clone()];
+        return vec![self.get_id()];
     }
 
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(super::common::KeyEvent) -> bool>> {

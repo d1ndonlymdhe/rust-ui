@@ -6,7 +6,7 @@ pub struct RawText {
     pub content: String,
     pub font_size: i32,
     pub pos: (i32, i32),
-    pub dbg_name: String,
+    pub dbg_name: ID,
     pub padding: (i32, i32, i32, i32), // top, right, bottom, left
     pub color: Color,
 }
@@ -41,8 +41,13 @@ impl Base for RawText {
             self.font_size + self.padding.1 + self.padding.3,
         )
     }
-    fn pass_1(&mut self, parent_draw_dim: (i32, i32)) {
+    fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
         self.set_dim(parent_draw_dim);
+        let ret_id = id + 1;
+        if let ID::Auto(_) = &self.dbg_name {
+            self.dbg_name = ID::Auto(ret_id.to_string());
+        }
+        ret_id
     }
     fn pass_2(&mut self, parent_pos: (i32, i32)) {
         self.pos = (parent_pos.0, parent_pos.1);
@@ -78,7 +83,10 @@ impl Base for RawText {
         panic!("RawText cannot have on_click");
     }
     fn get_id(&self) -> String {
-        self.dbg_name.clone()
+        match &self.dbg_name {
+            ID::Auto(name) => name.clone(),
+            ID::Manual(name) => name.clone(),
+        }
     }
     fn get_by_id(&self, _id: &str) -> Option<Rc<RefCell<dyn Base>>> {
         None
@@ -117,7 +125,7 @@ impl RawText {
             font_size,
             pos: (0, 0),
             padding,
-            dbg_name: generate_id(),
+            dbg_name: ID::Auto(generate_id()),
             color,
         }))
     }

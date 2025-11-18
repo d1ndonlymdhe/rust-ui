@@ -77,7 +77,7 @@ impl Root {
     pub fn pass_1(&mut self, _parent_draw_dim: (i32, i32)) {
         let mut mut_child = self.child.borrow_mut();
         mut_child.set_dim(self.draw_dim);
-        mut_child.pass_1(self.draw_dim);
+        mut_child.pass_1(self.draw_dim,0);
     }
     pub fn pass_2(&mut self, _parent_pos: (i32, i32)) {
         self.child.borrow_mut().pass_2(self.pos);

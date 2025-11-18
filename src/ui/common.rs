@@ -21,6 +21,13 @@ pub enum Alignment {
     Center,
     End,
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ID {
+    Auto(String),
+    Manual(String),
+}
+
 use uuid::Uuid;
 pub trait Base {
     fn set_pos(&mut self, pos: (i32, i32));
@@ -69,7 +76,7 @@ pub trait Base {
     fn set_dim(&mut self, parent_draw_dim: (i32, i32));
     fn get_draw_dim(&self) -> (i32, i32);
     fn get_draw_pos(&self) -> (i32, i32);
-    fn pass_1(&mut self, parent_draw_dim: (i32, i32));
+    fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize;
     fn pass_2(&mut self, parent_pos: (i32, i32));
     fn get_overflow(&self) -> (bool, bool);
     fn get_flex(&self) -> f32;
@@ -157,7 +164,8 @@ pub fn tabbed_print(text: &str, depth: usize) {
 }
 
 pub fn generate_id() -> String {
-    Uuid::new_v4().to_string()
+    // Uuid::new_v4().to_string()
+    "".to_string()
 }
 
 pub fn keyboard_key_to_char(key: KeyboardKey) -> Option<char> {
