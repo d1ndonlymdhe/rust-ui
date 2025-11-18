@@ -193,7 +193,6 @@ impl Base for Layout {
         self.on_click.clone()
     }
     fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
-        draw_handle.draw_text(&self.get_id(), self.pos.0+5, self.pos.1+5, 10, Color::BLACK);
 
         draw_handle.draw_rectangle(
             self.pos.0,
