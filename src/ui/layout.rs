@@ -28,7 +28,9 @@ pub struct Layout {
     pub flex: f32,
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
     pub children_func: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
+    pub overflow: (bool, bool),
 }
+
 
 pub struct LayoutProps {
     layout: Layout,
@@ -52,6 +54,7 @@ impl LayoutProps {
                 flex: self.layout.flex,
                 on_click: self.layout.on_click.clone(),
                 children_func: self.layout.children_func.clone(),
+                overflow: self.layout.overflow,
             },
         }
     }
@@ -75,6 +78,7 @@ impl LayoutProps {
                 flex: 1.0,
                 on_click: Rc::new(RefCell::new(|_mouse_event| true)),
                 children_func: None,
+                overflow: (false, true)
             },
         }
     }
@@ -129,6 +133,14 @@ impl LayoutProps {
         self.layout.children_func = Some(f);
         self
     }
+    pub fn overflow_x(mut self, overflow: bool) -> Self {
+        self.layout.overflow.0 = overflow;
+        self
+    }
+    pub fn overflow_y(mut self, overflow: bool) -> Self {
+        self.layout.overflow.1 = overflow;
+        self
+    }
     pub fn build(self) -> Rc<RefCell<Layout>> {
         let layout = self.layout;
         Rc::new(RefCell::new(Layout {
@@ -146,6 +158,7 @@ impl LayoutProps {
             flex: layout.flex,
             on_click: layout.on_click.clone(),
             children_func: layout.children_func.clone(),
+            overflow: layout.overflow,
         }))
     }
 }
@@ -432,5 +445,9 @@ impl Base for Layout {
 
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(super::common::KeyEvent) -> bool>> {
         Rc::new(RefCell::new(|_key_event| true))
+    }
+    
+    fn get_overflow(&self) -> (bool, bool) {
+        self.overflow
     }
 }

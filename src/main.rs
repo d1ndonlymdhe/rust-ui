@@ -15,7 +15,7 @@ use ui::common::{Length, MouseEvent};
 use ui::raw_text::RawText;
 use ui::root::Root;
 
-use crate::ui::common::{Alignment, Component, KeyEvent, def_key_handler};
+use crate::ui::common::{Alignment, Component, KeyEvent, ScrollEvent, def_key_handler};
 use crate::ui::layout::Layout;
 use crate::ui::text_input::TextInput;
 use crate::ui::text_layout::TextLayout;
@@ -51,28 +51,68 @@ fn main() {
     let container_x = 40.0;
 
     while !rl.window_should_close() {
-        let mut d = rl.begin_drawing(&thread);
-        d.clear_background(Color::WHITE);
-        d.draw_rectangle(
-            container_x as i32,
-            container_y as i32,
-            container_width as i32,
-            container_height as i32,
-            Color::RED,
-        );
-        for i in 0..100 {
-            draw_rectangle(
-                &mut d,
-                i,
-                scroll_top as i32,
-                container_y as i32,
-                container_x as i32,
-                container_height as i32,
-            );
+        {
+            let chat_layout = chat_layout();
+            let mut mut_root = binding.borrow_mut();
+            mut_root.set_children(vec![chat_layout]);
+            mut_root.pass_1((0, 0));
+            mut_root.pass_2((0, 0));
         }
-        let scroll_y = d.get_mouse_wheel_move_v().y;
-        scroll_top = (scroll_top as f32 - scroll_y * 20.0)
-            .clamp(0.0, scroll_height - container_height) as f32;
+        let mouse_pos = rl.get_mouse_position();
+        let left_mouse_pressed = rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
+
+        let key = rl.get_key_pressed();
+        let shift_down = rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
+            || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
+        let mut d = rl.begin_drawing(&thread);
+        let mouse_event = MouseEvent {
+            pos: (mouse_pos.x as i32, mouse_pos.y as i32),
+            left_button_down: left_mouse_pressed,
+        };
+
+        let wheel_move  = d.get_mouse_wheel_move_v();
+        let scroll_y = wheel_move.y;
+        let scroll_event = ScrollEvent {
+            pos: (mouse_pos.x as i32, mouse_pos.y as i32),
+            delta: scroll_y as i32,
+        };
+        {
+            let binding = root.clone();
+            let root = binding.borrow();
+            root.get_scroll_event_handler(scroll_event);
+        }
+
+
+        let key_event = KeyEvent { key, shift_down };
+        {
+            let binding = root.clone();
+            let mut root = binding.borrow_mut();
+            root.draw(&mut d);
+            root.get_mouse_event_handlers(mouse_event);
+            root.handle_key_event(key_event);
+        }
+        // let mut d = rl.begin_drawing(&thread);
+        // d.clear_background(Color::WHITE);
+        // d.draw_rectangle(
+        //     container_x as i32,
+        //     container_y as i32,
+        //     container_width as i32,
+        //     container_height as i32,
+        //     Color::RED,
+        // );
+        // for i in 0..100 {
+        //     draw_rectangle(
+        //         &mut d,
+        //         i,
+        //         scroll_top as i32,
+        //         container_y as i32,
+        //         container_x as i32,
+        //         container_height as i32,
+        //     );
+        // }
+        // let scroll_y = d.get_mouse_wheel_move_v().y;
+        // scroll_top = (scroll_top as f32 - scroll_y * 20.0)
+        //     .clamp(0.0, scroll_height - container_height) as f32;
     }
 }
 

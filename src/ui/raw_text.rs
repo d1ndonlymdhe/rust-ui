@@ -102,6 +102,12 @@ impl Base for RawText {
         ) {
             panic!("RawText cannot have children");
     }
+    fn get_overflow(&self) -> (bool, bool) {
+        (false, false)
+    }
+    fn get_scroll_event_handler(&self, _scroll_event: ScrollEvent) -> Option<String> {
+        None
+    }
 }
 
 impl RawText {

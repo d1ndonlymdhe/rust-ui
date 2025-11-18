@@ -37,6 +37,7 @@ pub struct TextInput {
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
 
     pub text_color: Color,
+    pub overflow: (bool, bool),
 }
 
 pub struct TextInputProps {
@@ -65,6 +66,7 @@ impl TextInputProps {
             on_click: Rc::new(RefCell::new(|_mouse_event| true)),
             def_on_key: Rc::new(RefCell::new(|_key_event| true)),
             text_color: Color::BLACK,
+            overflow: (false, true),
         };
         let closure_text_content = text_content.clone();
         text_input.def_on_key = Rc::new(RefCell::new(move |key_event: KeyEvent| {
@@ -145,6 +147,14 @@ impl TextInputProps {
         self.layout.def_on_key = Rc::new(RefCell::new(f));
         self
     }
+    pub fn overflow_x(mut self, overflow: bool) -> Self {
+        self.layout.overflow.0 = overflow;
+        self
+    }
+    pub fn overflow_y(mut self, overflow: bool) -> Self {
+        self.layout.overflow.1 = overflow;
+        self
+    }
     pub fn build(self) -> Rc<RefCell<TextInput>> {
         let layout = self.layout;
         Rc::new(RefCell::new(TextInput {
@@ -166,6 +176,7 @@ impl TextInputProps {
             def_on_key: layout.def_on_key,
             on_click: layout.on_click,
             text_color: layout.text_color,
+            overflow: layout.overflow,
         }))
     }
 
@@ -195,6 +206,7 @@ impl TextInputProps {
                 def_on_key: self.layout.def_on_key.clone(),
                 on_click: self.layout.on_click.clone(),
                 text_color: self.layout.text_color,
+                overflow: self.layout.overflow,
             },
         }
     }
@@ -227,6 +239,7 @@ impl TextInput {
             def_on_key: self.def_on_key.clone(),
             on_click: self.on_click.clone(),
             text_color: self.text_color.clone(),
+            overflow: self.overflow,
         }
     }
 }
@@ -518,6 +531,9 @@ impl Base for TextInput {
     }
     fn is_focusable(&self) -> bool {
         true
+    }
+    fn get_overflow(&self) -> (bool, bool) {
+        self.overflow
     }
 }
 

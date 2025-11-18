@@ -35,6 +35,31 @@ pub trait Base {
     fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>;
 
     fn get_key_event_handlers(&self, key_event: KeyEvent) -> Vec<String>;
+    fn get_scroll_event_handler(&self, scroll_event: ScrollEvent) -> Option<String>{
+        let children = self.get_children();
+        for child in children.iter() {
+            let child = child.borrow();
+            if let Some(handler_id) = child.get_scroll_event_handler(scroll_event) {
+                return Some(handler_id);
+            }
+        }
+        let overflow = self.get_overflow();
+        let scroll_event_x = scroll_event.pos.0;
+        let scroll_event_y = scroll_event.pos.1;
+        if overflow.1 {
+            let draw_pos = self.get_draw_pos();
+            let draw_dim = self.get_draw_dim();
+            let x = draw_pos.0;
+            let y = draw_pos.1;
+            let w = draw_dim.0;
+            let h = draw_dim.1;
+            let inside = scroll_event_x >= x && scroll_event_x <= x + w && scroll_event_y >= y && scroll_event_y <= y + h;
+            if inside {
+                return Some(self.get_id());
+            }
+        }
+        None
+    }
     fn execute_on_key(&self, key_event: KeyEvent) -> bool {
         let f = self.get_on_key();
         let mut f = f.borrow_mut();
@@ -46,6 +71,7 @@ pub trait Base {
     fn get_draw_pos(&self) -> (i32, i32);
     fn pass_1(&mut self, parent_draw_dim: (i32, i32));
     fn pass_2(&mut self, parent_pos: (i32, i32));
+    fn get_overflow(&self) -> (bool, bool);
     fn get_flex(&self) -> f32;
     fn debug_dims(&self, depth: usize);
     fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>);
@@ -73,6 +99,12 @@ pub trait Base {
 pub struct MouseEvent {
     pub pos: (i32, i32),
     pub left_button_down: bool,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ScrollEvent {
+    pub pos: (i32, i32),
+    pub delta: i32,
 }
 
 #[derive(Clone, Copy, Debug)]

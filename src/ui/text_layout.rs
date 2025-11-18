@@ -2,7 +2,6 @@ use std::{cell::RefCell, ffi::CString, rc::Rc};
 
 use raylib::{
     color::Color,
-    ffi::KeyboardKey,
     prelude::{RaylibDraw, RaylibDrawHandle},
 };
 
@@ -33,6 +32,7 @@ pub struct TextLayout {
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
 
     pub text_color: Color,
+    pub overflow: (bool, bool),
 }
 
 pub struct TextLayoutProps {
@@ -59,7 +59,8 @@ impl TextLayoutProps {
                 dbg_name: generate_id(),
                 flex: 1.0,
                 on_click: Rc::new(RefCell::new(|_mouse_event| true)),
-                text_color: Color::BLACK
+                text_color: Color::BLACK,
+                overflow: (false, true),
             },
         }
     }
@@ -117,7 +118,14 @@ impl TextLayoutProps {
         self.layout.text_color = color;
         self
     }
-
+    pub fn overflow_x(mut self, overflow: bool) -> Self {
+        self.layout.overflow.0 = overflow;
+        self
+    }
+    pub fn overflow_y(mut self, overflow: bool) -> Self {
+        self.layout.overflow.1 = overflow;
+        self
+    }
     pub fn build(self) -> Rc<RefCell<TextLayout>> {
         let layout = self.layout;
         Rc::new(RefCell::new(TextLayout {
@@ -138,6 +146,7 @@ impl TextLayoutProps {
             flex: layout.flex,
             on_click: layout.on_click,
             text_color: layout.text_color,
+            overflow: layout.overflow,
         }))
     }
     pub fn clone(&self) -> Self {
@@ -160,6 +169,7 @@ impl TextLayoutProps {
                 flex: self.layout.flex,
                 on_click: self.layout.on_click.clone(),
                 text_color: self.layout.text_color,
+                overflow: self.layout.overflow,
             },
 
         }
@@ -189,6 +199,7 @@ impl TextLayout {
             flex: self.flex,
             on_click: self.on_click.clone(),
             text_color: self.text_color,
+            overflow: self.overflow,
         }
     }
 }
@@ -471,6 +482,10 @@ impl Base for TextLayout {
 
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(super::common::KeyEvent) -> bool>> {
         Rc::new(RefCell::new(|_key_event| true))
+    }
+    
+    fn get_overflow(&self) -> (bool, bool) {
+        self.overflow
     }
 }
 

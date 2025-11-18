@@ -4,13 +4,14 @@ use raylib::{
 };
 
 use crate::ui::common::*;
-use std::{cell::RefCell, rc::Rc, vec};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, vec};
 
 pub struct Root {
     pub child: Rc<RefCell<dyn Base>>,
     pub draw_dim: (i32, i32),
     pub pos: (i32, i32),
     pub focused_id: Option<String>,
+    pub scroll_map: HashMap<String, i32>,
 }
 
 impl Root {
@@ -56,6 +57,23 @@ impl Root {
             self.focused_id = focused_id;
         }
     }
+
+    pub fn get_scroll_event_handler(&self, scroll_event: ScrollEvent) {
+        if scroll_event.delta == 0 {
+            return;
+        }
+        let child = self.child.clone();
+        if let Some(handler_id) = child.borrow().get_scroll_event_handler(scroll_event) {
+            let child = self.get_by_id(&handler_id);
+            if let Some(child) = child {
+
+                println!("Found scroll handler: {}", handler_id);
+                // let mut child = child.borrow_mut();
+                // child.execute_on_scroll(scroll_event);
+            }
+        }
+    }
+
     pub fn pass_1(&mut self, _parent_draw_dim: (i32, i32)) {
         let mut mut_child = self.child.borrow_mut();
         mut_child.set_dim(self.draw_dim);
@@ -110,6 +128,7 @@ impl Root {
             draw_dim: dim,
             pos: (0, 0),
             focused_id: None,
+            scroll_map: HashMap::new(),
         }))
     }
 }
