@@ -78,7 +78,7 @@ fn main() {
         };
         {
             let binding = root.clone();
-            let root = binding.borrow();
+            let mut root = binding.borrow_mut();
             root.get_scroll_event_handler(scroll_event);
         }
 
@@ -87,8 +87,8 @@ fn main() {
         {
             let binding = root.clone();
             let mut root = binding.borrow_mut();
-            root.draw(&mut d);
-            root.get_mouse_event_handlers(mouse_event);
+            root.draw(&mut d,1000);
+            root.get_mouse_event_handlers(mouse_event); 
             root.handle_key_event(key_event);
         }
         // let mut d = rl.begin_drawing(&thread);

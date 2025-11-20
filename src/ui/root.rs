@@ -6,6 +6,7 @@ use raylib::{
 use crate::ui::common::*;
 use std::{cell::RefCell, collections::HashMap, rc::Rc, vec};
 
+
 pub struct Root {
     pub child: Rc<RefCell<dyn Base>>,
     pub draw_dim: (i32, i32),
@@ -14,8 +15,10 @@ pub struct Root {
     pub scroll_map: HashMap<String, i32>,
 }
 
+
+
 impl Root {
-    pub fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
+    pub fn draw(&self, draw_handle: &mut RaylibDrawHandle, container_height: i32) {
         draw_handle.clear_background(Color::BLACK);
         {
             let mut child_mut = self.child.borrow_mut();
@@ -23,7 +26,7 @@ impl Root {
             child_mut.set_dim(self.draw_dim);
         }
         let child = self.child.borrow();
-        child.draw(draw_handle);
+        child.draw(draw_handle,0, container_height,&self.scroll_map);
     }
 
     pub fn handle_key_event(&self, key_event: KeyEvent) {
@@ -58,19 +61,23 @@ impl Root {
         }
     }
 
-    pub fn get_scroll_event_handler(&self, scroll_event: ScrollEvent) {
+    pub fn get_scroll_event_handler(&mut self, scroll_event: ScrollEvent) {
         if scroll_event.delta == 0 {
             return;
         }
         let child = self.child.clone();
         if let Some(handler_id) = child.borrow().get_scroll_event_handler(scroll_event) {
-            let child = self.get_by_id(&handler_id);
-            if let Some(child) = child {
+            let scroll_map = &mut self.scroll_map; 
+            let entry = scroll_map.entry(handler_id);
+            let scroll_offset = entry.or_insert(0);
+            *scroll_offset -= scroll_event.delta*20;
+            // let child = self.get_by_id(&handler_id);
+            // if let Some(child) = child {
 
-                println!("Found scroll handler: {}", handler_id);
-                // let mut child = child.borrow_mut();
-                // child.execute_on_scroll(scroll_event);
-            }
+            //     println!("Found scroll handler: {}", handler_id);
+            //     // let mut child = child.borrow_mut();
+            //     // child.execute_on_scroll(scroll_event);
+            // }
         }
     }
 

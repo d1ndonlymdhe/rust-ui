@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, f32::consts::E, rc::Rc};
 
 use raylib::{
     RaylibHandle,
@@ -8,7 +8,10 @@ use raylib::{
 };
 
 use crate::ui::{
-    common::{Alignment, Base, Direction, ID, Length, MouseEvent, generate_id, tabbed_print},
+    common::{
+        Alignment, Base, Direction, ID, Length, MouseEvent, generate_id, get_drawable_y_and_h,
+        tabbed_print,
+    },
     layout,
 };
 
@@ -29,8 +32,8 @@ pub struct Layout {
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
     pub children_func: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
     pub overflow: (bool, bool),
+    pub scroll_offset: i32,
 }
-
 
 pub struct LayoutProps {
     layout: Layout,
@@ -55,6 +58,7 @@ impl LayoutProps {
                 on_click: self.layout.on_click.clone(),
                 children_func: self.layout.children_func.clone(),
                 overflow: self.layout.overflow,
+                scroll_offset: self.layout.scroll_offset,
             },
         }
     }
@@ -78,7 +82,8 @@ impl LayoutProps {
                 flex: 1.0,
                 on_click: Rc::new(RefCell::new(|_mouse_event| true)),
                 children_func: None,
-                overflow: (false, true)
+                scroll_offset: 0,
+                overflow: (false, true),
             },
         }
     }
@@ -126,10 +131,7 @@ impl LayoutProps {
         self.layout.on_click = Rc::new(RefCell::new(f));
         self
     }
-    pub fn children_func(
-        mut self,
-        f: Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>,
-    ) -> Self {
+    pub fn children_func(mut self, f: Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>) -> Self {
         self.layout.children_func = Some(f);
         self
     }
@@ -159,6 +161,7 @@ impl LayoutProps {
             on_click: layout.on_click.clone(),
             children_func: layout.children_func.clone(),
             overflow: layout.overflow,
+            scroll_offset: layout.scroll_offset,
         }))
     }
 }
@@ -169,6 +172,30 @@ impl Layout {
     }
     pub fn get_col_builder() -> LayoutProps {
         LayoutProps::new().direction(Direction::Column)
+    }
+    pub fn get_scroll_height(&self) -> i32 {
+        if self.direction == Direction::Column {
+            let last_child = self.children.last();
+            if let Some(child) = last_child {
+                let child = child.borrow();
+                let (_, child_height) = child.get_draw_dim();
+                child_height + child.get_draw_pos().1
+            } else {
+                0
+            }
+        } else {
+            let mut max_height = 0;
+            for child in self.children.iter() {
+                let child = child.borrow();
+                let (_, child_height) = child.get_draw_dim();
+                let child_pos = child.get_draw_pos().1;
+                let total_height = child_height + child_pos;
+                if total_height > max_height {
+                    max_height = total_height;
+                }
+            }
+            max_height
+        }
     }
 }
 
@@ -192,18 +219,41 @@ impl Base for Layout {
     fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
         self.on_click.clone()
     }
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
-
+    fn draw(
+        &self,
+        draw_handle: &mut RaylibDrawHandle,
+        container_y: i32,
+        container_height: i32,
+        scroll_map: &HashMap<String, i32>,
+    ) {
+        let max_scroll = (self.get_scroll_height() - container_height).max(0);
+        let scroll_top = scroll_map
+            .get(&self.get_id())
+            .cloned()
+            .unwrap_or(0)
+            .clamp(0, max_scroll);
+        let (start_y, visible_height) = get_drawable_y_and_h(
+            scroll_top,
+            container_y,
+            container_height,
+            self.get_draw_pos().1,
+            self.get_draw_pos().1,
+        );
         draw_handle.draw_rectangle(
             self.pos.0,
-            self.pos.1,
+            start_y,
             self.draw_dim.0,
-            self.draw_dim.1,
+            visible_height,
             self.bg_color,
         );
         for child in self.children.iter() {
             let child = child.clone();
-            child.borrow().draw(draw_handle);
+            child.borrow().draw(
+                draw_handle,
+                self.get_draw_pos().1,
+                self.get_draw_dim().1,
+                scroll_map,
+            );
         }
     }
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String> {
@@ -261,7 +311,7 @@ impl Base for Layout {
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
     }
-    fn pass_1(&mut self, parent_draw_dim: (i32, i32),id: usize) -> usize {
+    fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
         let child_len = self.children.len() as i32;
         let total_flex = self
             .children
@@ -278,7 +328,9 @@ impl Base for Layout {
                     let child_width = f32::round(flex * (allowed_width as f32 / total_flex)) as i32;
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.borrow_mut().set_dim((child_width, child_height));
-                    ret_id = child.borrow_mut().pass_1((child_width, child_height),ret_id+1);
+                    ret_id = child
+                        .borrow_mut()
+                        .pass_1((child_width, child_height), ret_id + 1);
                 }
                 Direction::Column => {
                     let allowed_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
@@ -287,7 +339,9 @@ impl Base for Layout {
                         f32::round(flex * (allowed_height as f32 / total_flex)) as i32;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     child.borrow_mut().set_dim((child_width, child_height));
-                    ret_id = child.borrow_mut().pass_1((child_width, child_height),ret_id+1);
+                    ret_id = child
+                        .borrow_mut()
+                        .pass_1((child_width, child_height), ret_id + 1);
                 }
             }
         }
@@ -456,7 +510,7 @@ impl Base for Layout {
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(super::common::KeyEvent) -> bool>> {
         Rc::new(RefCell::new(|_key_event| true))
     }
-    
+
     fn get_overflow(&self) -> (bool, bool) {
         self.overflow
     }

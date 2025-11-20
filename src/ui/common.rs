@@ -1,5 +1,5 @@
 use raylib::prelude::*;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Length {
@@ -28,11 +28,29 @@ pub enum ID {
     Manual(String),
 }
 
-use uuid::Uuid;
+pub fn get_drawable_y_and_h(scroll_top:i32,container_y:i32,container_height:i32,content_y:i32,content_height:i32)->(i32,i32) {
+    let y_min = container_y;
+    let y_max = container_y + container_height;
+    let bottom_y = content_y + content_height - scroll_top;
+
+    let top_in = content_y >= y_min && content_y <= y_max;
+    let bottom_in = bottom_y >= y_min && bottom_y <= y_max;
+
+    let (draw_y, visible_height) = if top_in && bottom_in {
+        (content_y,content_height)
+    } else if !top_in && bottom_in {
+        (y_min,bottom_y - y_min)
+    } else if top_in && !bottom_in {
+        (content_y, y_max - content_y)
+    } else {
+        (0,0)
+    };
+    return (draw_y, visible_height);
+}
+
 pub trait Base {
     fn set_pos(&mut self, pos: (i32, i32));
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle);
-
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle, container_y:i32,container_height: i32, scroll_map: &HashMap<String, i32>);
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String>;
     fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
         let f = self.get_on_click();

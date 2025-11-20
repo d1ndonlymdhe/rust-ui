@@ -1,4 +1,4 @@
-use std::{cell::RefCell, ffi::CString, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, ffi::CString, rc::Rc};
 
 use raylib::{
     color::Color,
@@ -9,7 +9,7 @@ use raylib::{
 use crate::ui::{
     common::{
         Alignment, Base, Direction, ID, KeyEvent, Length, MouseEvent, generate_id,
-        keyboard_key_to_char, shift_character, tabbed_print,
+        keyboard_key_to_char, shift_character, tabbed_print, get_drawable_y_and_h,
     },
     raw_text::RawText,
 };
@@ -242,6 +242,30 @@ impl TextInput {
             overflow: self.overflow,
         }
     }
+    pub fn get_scroll_height(&self) -> i32 {
+        if self.direction == Direction::Column {
+            let last_child = self.children.last();
+            if let Some(child) = last_child {
+                let child = child.borrow();
+                let (_, child_height) = child.get_draw_dim();
+                child_height + child.get_draw_pos().1
+            } else {
+                0
+            }
+        } else {
+            let mut max_height = 0;
+            for child in self.children.iter() {
+                let child = child.borrow();
+                let (_, child_height) = child.get_draw_dim();
+                let child_pos = child.get_draw_pos().1;
+                let total_height = child_height + child_pos;
+                if total_height > max_height {
+                    max_height = total_height;
+                }
+            }
+            max_height
+        }
+    }
 }
 
 impl Base for TextInput {
@@ -267,17 +291,25 @@ impl Base for TextInput {
     fn get_draw_pos(&self) -> (i32, i32) {
         self.pos
     }
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle) {
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle,container_y:i32,container_height:i32,scroll_map:&HashMap<String,i32>) {
+        let max_scroll = (self.get_scroll_height() - container_height).max(0);
+        let scroll_top = scroll_map
+            .get(&self.get_id())
+            .cloned()
+            .unwrap_or(0)
+            .clamp(0, max_scroll);
+        let (draw_y,visible_height) = get_drawable_y_and_h(scroll_top, container_y, container_height, self.get_draw_pos().1, self.get_draw_dim().1);
+        
         draw_handle.draw_rectangle(
             self.pos.0,
-            self.pos.1,
+            draw_y,
             self.draw_dim.0,
-            self.draw_dim.1,
+            visible_height,
             self.bg_color,
         );
         for child in self.children.iter() {
             let child = child.clone();
-            child.borrow().draw(draw_handle);
+            child.borrow().draw(draw_handle,self.get_draw_pos().0,self.get_draw_dim().1,scroll_map);
         }
     }
     fn get_id(&self) -> String {
