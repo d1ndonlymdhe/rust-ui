@@ -9,7 +9,7 @@ use raylib::{
 use crate::ui::{
     common::{
         Alignment, Base, Direction, ID, KeyEvent, Length, MouseEvent, generate_id,
-        keyboard_key_to_char, shift_character, tabbed_print, get_drawable_y_and_h,
+        get_drawable_y_and_h, keyboard_key_to_char, shift_character, tabbed_print,
     },
     raw_text::RawText,
 };
@@ -269,7 +269,6 @@ impl TextInput {
 }
 
 impl Base for TextInput {
-
     fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
         ()
     }
@@ -285,25 +284,47 @@ impl Base for TextInput {
     fn get_draw_pos(&self) -> (i32, i32) {
         self.pos
     }
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle,container_y:i32,container_height:i32,scroll_map:&HashMap<String,i32>) {
+    fn draw(
+        &self,
+        draw_handle: &mut RaylibDrawHandle,
+        container_y: i32,
+        container_height: i32,
+        scroll_map: &HashMap<String, i32>,
+        y_offset: i32,
+    ) {
         let max_scroll = (self.get_scroll_height() - container_height).max(0);
         let scroll_top = scroll_map
             .get(&self.get_id())
             .cloned()
             .unwrap_or(0)
             .clamp(0, max_scroll);
-        let (draw_y,visible_height) = get_drawable_y_and_h(scroll_top, container_y, container_height, self.get_draw_pos().1, self.get_draw_dim().1);
-        
-        draw_handle.draw_rectangle(
-            self.pos.0,
-            draw_y,
-            self.draw_dim.0,
-            visible_height,
-            self.bg_color,
+        let (_, visible_height) = get_drawable_y_and_h(
+            y_offset,
+            container_y,
+            container_height,
+            self.get_draw_pos().1,
+            self.get_draw_dim().1,
         );
+
+        let start_y = self.get_draw_pos().1 - y_offset;
+        if visible_height > 0 {
+            draw_handle.draw_rectangle(
+                self.pos.0,
+                start_y,
+                self.draw_dim.0,
+                visible_height,
+                self.bg_color,
+            );
+        }
         for child in self.children.iter() {
             let child = child.clone();
-            child.borrow().draw(draw_handle,self.get_draw_pos().0,self.get_draw_dim().1,scroll_map);
+            child.borrow().draw(
+                draw_handle,
+                start_y,
+                visible_height,
+                scroll_map,
+                y_offset + scroll_top,
+            );
         }
     }
     fn get_id(&self) -> String {
@@ -370,7 +391,8 @@ impl Base for TextInput {
                 self.children = text_rows
                     .iter()
                     .map(|row| {
-                        RawText::new(row, self.font_size, self.padding,self.text_color) as Rc<RefCell<dyn Base>>
+                        RawText::new(row, self.font_size, self.padding, self.text_color)
+                            as Rc<RefCell<dyn Base>>
                     })
                     .collect();
             }
@@ -415,7 +437,9 @@ impl Base for TextInput {
                     let child_width = f32::round(flex * (allowed_width as f32 / total_flex)) as i32;
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.borrow_mut().set_dim((child_width, child_height));
-                    ret_id = child.borrow_mut().pass_1((child_width, child_height),ret_id+1);
+                    ret_id = child
+                        .borrow_mut()
+                        .pass_1((child_width, child_height), ret_id + 1);
                 }
                 Direction::Column => {
                     let allowed_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
@@ -424,7 +448,9 @@ impl Base for TextInput {
                         f32::round(flex * (allowed_height as f32 / total_flex)) as i32;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     child.borrow_mut().set_dim((child_width, child_height));
-                    ret_id = child.borrow_mut().pass_1((child_width, child_height),ret_id+1);
+                    ret_id = child
+                        .borrow_mut()
+                        .pass_1((child_width, child_height), ret_id + 1);
                 }
             }
         }

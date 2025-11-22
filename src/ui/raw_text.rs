@@ -18,7 +18,7 @@ impl Base for RawText {
     fn get_draw_pos(&self) -> (i32, i32) {
         self.pos
     }
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle,container_y:i32,container_height: i32, scroll_map: &HashMap<String, i32>) {
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle,container_y:i32,container_height: i32, _scroll_map: &HashMap<String, i32>,y_offset:i32) {
         // let max_scroll = (self.font_size - container_height).max(0);
         // let scroll_top = scroll_map
         //     .get(&self.get_id())
@@ -26,21 +26,20 @@ impl Base for RawText {
         //     .unwrap_or(0)
         //     //TODO find correct formula (padding)
         //     .clamp(0, max_scroll);
-        //  let (draw_y, visible_height) = get_drawable_y_and_h(
-        //      scroll_top,
+        //  let (_, visible_height) = get_drawable_y_and_h(
+        //      y_offset,
         //      container_y,
         //      container_height,
         //      self.pos.1,
         //      self.get_draw_dim().1,
         //  );
-        //  if visible_height <= 0 {
-        //      return;
+        //  if visible_height <= self.font_size {
+        //     return;
         //  }
-         // TODO if needed, clip the text drawing to visible_height
         draw_handle.draw_text(
             &self.content,
             self.pos.0,
-            self.pos.1,
+            self.pos.1 - y_offset,
             self.font_size,
             self.color,
         );

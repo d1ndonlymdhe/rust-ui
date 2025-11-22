@@ -26,7 +26,7 @@ impl Root {
             child_mut.set_dim(self.draw_dim);
         }
         let child = self.child.borrow();
-        child.draw(draw_handle,0, container_height,&self.scroll_map);
+        child.draw(draw_handle,0, container_height,&self.scroll_map,0);
     }
 
     pub fn handle_key_event(&self, key_event: KeyEvent)->bool {
@@ -71,7 +71,7 @@ impl Root {
         }
         let child = self.child.clone();
         if let Some(handler_id) = child.borrow().get_scroll_event_handler(scroll_event) {
-            println!("SCROLL HANDLED BY {}", handler_id);
+
             let scroll_map = &mut self.scroll_map; 
             let entry = scroll_map.entry(handler_id);
             let scroll_offset = entry.or_insert(0);

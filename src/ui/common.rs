@@ -28,10 +28,10 @@ pub enum ID {
     Manual(String),
 }
 
-pub fn get_drawable_y_and_h(scroll_top:i32,container_y:i32,container_height:i32,content_y:i32,content_height:i32)->(i32,i32) {
+pub fn get_drawable_y_and_h(scroll_offset:i32,container_y:i32,container_height:i32,content_y:i32,content_height:i32)->(i32,i32) {
     let y_min = container_y;
     let y_max = container_y + container_height;
-    let bottom_y = content_y + content_height - scroll_top;
+    let bottom_y = content_y + content_height - scroll_offset;
 
     let top_in = content_y >= y_min && content_y <= y_max;
     let bottom_in = bottom_y >= y_min && bottom_y <= y_max;
@@ -50,7 +50,7 @@ pub fn get_drawable_y_and_h(scroll_top:i32,container_y:i32,container_height:i32,
 
 pub trait Base {
     fn set_pos(&mut self, pos: (i32, i32));
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle, container_y:i32,container_height: i32, scroll_map: &HashMap<String, i32>);
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle, container_y:i32,container_height: i32, scroll_map: &HashMap<String, i32>,y_offset:i32);
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String>;
     fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
         let f = self.get_on_click();

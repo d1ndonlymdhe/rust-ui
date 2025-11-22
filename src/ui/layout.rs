@@ -1,9 +1,7 @@
-use std::{cell::RefCell, collections::HashMap, f32::consts::E, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use raylib::{
-    RaylibHandle,
     color::Color,
-    ffi::MouseButton,
     prelude::{RaylibDraw, RaylibDrawHandle},
 };
 
@@ -12,7 +10,6 @@ use crate::ui::{
         Alignment, Base, Direction, ID, Length, MouseEvent, generate_id, get_drawable_y_and_h,
         tabbed_print,
     },
-    layout,
 };
 
 pub struct Layout {
@@ -216,41 +213,40 @@ impl Base for Layout {
         container_y: i32,
         container_height: i32,
         scroll_map: &HashMap<String, i32>,
+        y_offset: i32,
     ) {
         let scroll_height = self.get_scroll_height();
-        if self.get_id() == "167" {
-            assert!(true);
-        }
+
         let max_scroll = (scroll_height - container_height).max(0);
         let scroll_top = scroll_map
             .get(&self.get_id())
             .cloned()
             .unwrap_or(0)
-            .clamp(0, max_scroll);
-        let (start_y, visible_height) = get_drawable_y_and_h(
-            scroll_top,
+            .min(max_scroll)
+            .max(0)
+            ;
+        let (_, visible_height) = get_drawable_y_and_h(
+            y_offset,
             container_y,
             container_height,
             self.get_draw_pos().1,
             self.get_draw_dim().1,
         );
+        let start_y = self.get_draw_pos().1 - y_offset;
         if visible_height > 0 {
             draw_handle.draw_rectangle(
                 self.pos.0,
                 start_y,
                 self.draw_dim.0,
                 visible_height,
-                self.bg_color,
+                self.bg_color
             );
         }
         for child in self.children.iter() {
             let child = child.clone();
-            child.borrow().draw(
-                draw_handle,
-                start_y,
-                visible_height,
-                scroll_map,
-            );
+            child
+                .borrow()
+                .draw(draw_handle, start_y, visible_height, scroll_map, scroll_top+y_offset);
         }
     }
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String> {
