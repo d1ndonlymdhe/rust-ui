@@ -179,7 +179,8 @@ impl Layout {
             if let Some(child) = last_child {
                 let child = child.borrow();
                 let (_, child_height) = child.get_draw_dim();
-                child_height + child.get_draw_pos().1
+                let child_y = child.get_draw_pos().1;
+                child_height + child_y
             } else {
                 0
             }
@@ -194,22 +195,12 @@ impl Layout {
                     max_height = total_height;
                 }
             }
-            max_height
+            max_height.max(self.draw_dim.1)
         }
     }
 }
 
 impl Base for Layout {
-    fn set_children_func(
-        &mut self,
-        f: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
-    ) {
-        if let Some(func) = f {
-            let children = func.borrow()();
-            self.set_children(children);
-        }
-    }
-
     fn set_pos(&mut self, pos: (i32, i32)) {
         self.pos = pos;
     }
@@ -226,7 +217,11 @@ impl Base for Layout {
         container_height: i32,
         scroll_map: &HashMap<String, i32>,
     ) {
-        let max_scroll = (self.get_scroll_height() - container_height).max(0);
+        let scroll_height = self.get_scroll_height();
+        if self.get_id() == "167" {
+            assert!(true);
+        }
+        let max_scroll = (scroll_height - container_height).max(0);
         let scroll_top = scroll_map
             .get(&self.get_id())
             .cloned()
@@ -237,21 +232,23 @@ impl Base for Layout {
             container_y,
             container_height,
             self.get_draw_pos().1,
-            self.get_draw_pos().1,
+            self.get_draw_dim().1,
         );
-        draw_handle.draw_rectangle(
-            self.pos.0,
-            start_y,
-            self.draw_dim.0,
-            visible_height,
-            self.bg_color,
-        );
+        if visible_height > 0 {
+            draw_handle.draw_rectangle(
+                self.pos.0,
+                start_y,
+                self.draw_dim.0,
+                visible_height,
+                self.bg_color,
+            );
+        }
         for child in self.children.iter() {
             let child = child.clone();
             child.borrow().draw(
                 draw_handle,
-                self.get_draw_pos().1,
-                self.get_draw_dim().1,
+                start_y,
+                visible_height,
                 scroll_map,
             );
         }
@@ -412,6 +409,7 @@ impl Base for Layout {
             };
             let total_gap = self.gap * (self.children.len() as i32 - 1);
             let remaining_space = self_height - children_height - total_gap;
+            let remaining_space = remaining_space.max(0);
             if comparisons[1] == Alignment::Center {
                 padding_top = self.padding.1 + remaining_space / 2;
             }

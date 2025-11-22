@@ -19,28 +19,28 @@ impl Base for RawText {
         self.pos
     }
     fn draw(&self, draw_handle: &mut RaylibDrawHandle,container_y:i32,container_height: i32, scroll_map: &HashMap<String, i32>) {
-        let max_scroll = (self.font_size - container_height).max(0);
-        let scroll_top = scroll_map
-            .get(&self.get_id())
-            .cloned()
-            .unwrap_or(0)
-            //TODO find correct formula (padding)
-            .clamp(0, max_scroll);
-         let (draw_y, visible_height) = get_drawable_y_and_h(
-             scroll_top,
-             container_y,
-             container_height,
-             self.pos.1,
-             self.get_draw_dim().1,
-         );
-         if visible_height <= 0 {
-             return;
-         }
+        // let max_scroll = (self.font_size - container_height).max(0);
+        // let scroll_top = scroll_map
+        //     .get(&self.get_id())
+        //     .cloned()
+        //     .unwrap_or(0)
+        //     //TODO find correct formula (padding)
+        //     .clamp(0, max_scroll);
+        //  let (draw_y, visible_height) = get_drawable_y_and_h(
+        //      scroll_top,
+        //      container_y,
+        //      container_height,
+        //      self.pos.1,
+        //      self.get_draw_dim().1,
+        //  );
+        //  if visible_height <= 0 {
+        //      return;
+        //  }
          // TODO if needed, clip the text drawing to visible_height
         draw_handle.draw_text(
             &self.content,
             self.pos.0,
-            draw_y,
+            self.pos.1,
             self.font_size,
             self.color,
         );
@@ -120,13 +120,6 @@ impl Base for RawText {
 
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(KeyEvent) -> bool>> {
         Rc::new(RefCell::new(|_key_event| true))
-    }
-
-    fn set_children_func(
-            &mut self,
-            _f: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
-        ) {
-            panic!("RawText cannot have children");
     }
     fn get_overflow(&self) -> (bool, bool) {
         (false, false)

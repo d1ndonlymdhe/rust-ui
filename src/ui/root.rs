@@ -29,15 +29,17 @@ impl Root {
         child.draw(draw_handle,0, container_height,&self.scroll_map);
     }
 
-    pub fn handle_key_event(&self, key_event: KeyEvent) {
+    pub fn handle_key_event(&self, key_event: KeyEvent)->bool {
         if let Some(focused_id) = &self.focused_id {
             if let Some(focused_child) = self.get_by_id(focused_id) {
                 let focused_child = focused_child.borrow();
                 focused_child.execute_on_key(key_event);
+                return true;
             }
         }
+        false
     }
-    pub fn get_mouse_event_handlers(&mut self, mouse_event: MouseEvent) {
+    pub fn get_mouse_event_handlers(&mut self, mouse_event: MouseEvent)->bool {
         let child = self.child.clone();
         let hit_children = child.borrow().get_mouse_event_handlers(mouse_event);
 
@@ -58,19 +60,24 @@ impl Root {
         }
         if mouse_event.left_button_down {
             self.focused_id = focused_id;
+            return true;
         }
+        false
     }
 
-    pub fn get_scroll_event_handler(&mut self, scroll_event: ScrollEvent) {
+    pub fn get_scroll_event_handler(&mut self, scroll_event: ScrollEvent) -> bool {
         if scroll_event.delta == 0 {
-            return;
+            return false;
         }
         let child = self.child.clone();
         if let Some(handler_id) = child.borrow().get_scroll_event_handler(scroll_event) {
+            println!("SCROLL HANDLED BY {}", handler_id);
             let scroll_map = &mut self.scroll_map; 
             let entry = scroll_map.entry(handler_id);
             let scroll_offset = entry.or_insert(0);
             *scroll_offset -= scroll_event.delta*20;
+            return true;
+            // println!("New scroll offset: {}", scroll_offset);
             // let child = self.get_by_id(&handler_id);
             // if let Some(child) = child {
 
@@ -79,6 +86,7 @@ impl Root {
             //     // child.execute_on_scroll(scroll_event);
             // }
         }
+        false
     }
 
     pub fn pass_1(&mut self, _parent_draw_dim: (i32, i32)) {

@@ -49,14 +49,26 @@ fn main() {
     let container_width = 400.0;
     let container_y = 40.0;
     let container_x = 40.0;
-
+    {
+        let chat_layout = chat_layout();
+        let mut mut_root = binding.borrow_mut();
+        mut_root.set_children(vec![chat_layout]);
+        mut_root.pass_1((0, 0));
+        mut_root.pass_2((0, 0));
+        mut_root.debug_dims(0);
+    }
+    rl.set_target_fps(60);
+    let mut should_rebuild_ui = true;
     while !rl.window_should_close() {
-        {
-            let chat_layout = chat_layout();
-            let mut mut_root = binding.borrow_mut();
-            mut_root.set_children(vec![chat_layout]);
-            mut_root.pass_1((0, 0));
-            mut_root.pass_2((0, 0));
+        if should_rebuild_ui {
+            {
+                let chat_layout = chat_layout();
+                let mut mut_root = binding.borrow_mut();
+                mut_root.set_children(vec![chat_layout]);
+                mut_root.pass_1((0, 0));
+                mut_root.pass_2((0, 0));
+            }
+            should_rebuild_ui = false;
         }
         let mouse_pos = rl.get_mouse_position();
         let left_mouse_pressed = rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
@@ -65,31 +77,31 @@ fn main() {
         let shift_down = rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
             || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
         let mut d = rl.begin_drawing(&thread);
+
         let mouse_event = MouseEvent {
             pos: (mouse_pos.x as i32, mouse_pos.y as i32),
             left_button_down: left_mouse_pressed,
         };
 
-        let wheel_move  = d.get_mouse_wheel_move_v();
+        let wheel_move = d.get_mouse_wheel_move_v();
         let scroll_y = wheel_move.y;
+
         let scroll_event = ScrollEvent {
             pos: (mouse_pos.x as i32, mouse_pos.y as i32),
             delta: scroll_y as i32,
         };
-        {
-            let binding = root.clone();
-            let mut root = binding.borrow_mut();
-            root.get_scroll_event_handler(scroll_event);
-        }
-
 
         let key_event = KeyEvent { key, shift_down };
         {
             let binding = root.clone();
             let mut root = binding.borrow_mut();
-            root.draw(&mut d,1000);
-            root.get_mouse_event_handlers(mouse_event); 
-            root.handle_key_event(key_event);
+            root.draw(&mut d, 1000);
+            let a= root.get_mouse_event_handlers(mouse_event);
+            let b =root.handle_key_event(key_event);
+            let c = root.get_scroll_event_handler(scroll_event);
+            if a || b || c {
+                should_rebuild_ui = true;
+            }
         }
         // let mut d = rl.begin_drawing(&thread);
         // d.clear_background(Color::WHITE);
@@ -156,7 +168,7 @@ fn draw_rectangle(
             container_y,
             container_height,
             x,
-            y+20,
+            y + 20,
             10,
             Color::WHITE,
         );
@@ -241,15 +253,17 @@ impl ChatState {
 
     fn seed_messages(&mut self) {
         //Alice
-        self.add_message("Hello Alice!", "0", "1");
-        self.add_message("Hi! How are you?", "1", "0");
-        self.add_message("I'm good, thanks! And you?", "0", "1");
-        self.add_message("Doing well, just working on a project.", "1", "0");
-        self.add_message("That's great to hear!", "0", "1");
-        self.add_message("What about you?", "1", "0");
-        self.add_message("Same here, just busy with work.", "0", "1");
-        self.add_message("We should catch up sometime.", "1", "0");
-        self.add_message("Definitely! Let's plan for it.", "0", "1");
+        for _ in 0..3 {
+            self.add_message("Hello Alice!", "0", "1");
+            self.add_message("Hi! How are you?", "1", "0");
+            self.add_message("I'm good, thanks! And you?", "0", "1");
+            self.add_message("Doing well, just working on a project.", "1", "0");
+            self.add_message("That's great to hear!", "0", "1");
+            self.add_message("What about you?", "1", "0");
+            self.add_message("Same here, just busy with work.", "0", "1");
+            self.add_message("We should catch up sometime.", "1", "0");
+            self.add_message("Definitely! Let's plan for it.", "0", "1");
+        }
 
         //Bob
         self.add_message("Hey Bob!", "0", "2");
@@ -349,6 +363,7 @@ fn message_component(content: String, is_current_user: bool) -> Component {
                 .font_size(20)
                 .build(),
         ])
+        .overflow_y(false)
         .bg_color(Color {
             r: 0,
             g: 0,
@@ -464,6 +479,7 @@ fn chat_area_component() -> Component {
         .dim((Length::FILL, Length::FILL))
         .bg_color(Color::BLUE)
         .flex(7.5)
+        .dbg_name("CHAT_AREA")
         .main_align(Alignment::End)
         .children(messages)
         .build()

@@ -229,12 +229,7 @@ impl TextLayout {
 }
 
 impl Base for TextLayout {
-    fn set_children_func(
-        &mut self,
-        _f: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
-    ) {
-        panic!("TextLayout cannot have children");
-    }
+
     fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
         ()
     }
@@ -525,7 +520,8 @@ impl Base for TextLayout {
     }
     
     fn get_overflow(&self) -> (bool, bool) {
-        self.overflow
+        (false, false)
+        // self.overflow
     }
 }
 

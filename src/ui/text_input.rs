@@ -269,12 +269,6 @@ impl TextInput {
 }
 
 impl Base for TextInput {
-    fn set_children_func(
-        &mut self,
-        _f: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
-    ) {
-        panic!("TextInput cannot have children");
-    }
 
     fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
         ()
