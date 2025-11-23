@@ -50,7 +50,7 @@ pub fn get_drawable_y_and_h(scroll_offset:i32,container_y:i32,container_height:i
 
 pub trait Base {
     fn set_pos(&mut self, pos: (i32, i32));
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle, container_y:i32,container_height: i32, scroll_map: &HashMap<String, i32>,y_offset:i32);
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle, container_y:i32,container_height: i32, scroll_map: &mut HashMap<String, i32>,y_offset:i32);
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String>;
     fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
         let f = self.get_on_click();

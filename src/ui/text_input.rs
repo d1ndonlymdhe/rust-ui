@@ -289,7 +289,7 @@ impl Base for TextInput {
         draw_handle: &mut RaylibDrawHandle,
         container_y: i32,
         container_height: i32,
-        scroll_map: &HashMap<String, i32>,
+        scroll_map: &mut HashMap<String, i32>,
         y_offset: i32,
     ) {
         let max_scroll = (self.get_scroll_height() - container_height).max(0);

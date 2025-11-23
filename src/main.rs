@@ -482,7 +482,7 @@ fn chat_area_component() -> Component {
         // .main_align(Alignment::End)
         .children(messages)
         .gap(2)
-        .flex(20f32)
+        .flex(10f32)
         .build();
     let input_row = input_row_component();
 

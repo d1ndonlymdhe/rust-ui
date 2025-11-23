@@ -18,7 +18,7 @@ pub struct Root {
 
 
 impl Root {
-    pub fn draw(&self, draw_handle: &mut RaylibDrawHandle, container_height: i32) {
+    pub fn draw(&mut self, draw_handle: &mut RaylibDrawHandle, container_height: i32) {
         draw_handle.clear_background(Color::BLACK);
         {
             let mut child_mut = self.child.borrow_mut();
@@ -26,7 +26,7 @@ impl Root {
             child_mut.set_dim(self.draw_dim);
         }
         let child = self.child.borrow();
-        child.draw(draw_handle,0, container_height,&self.scroll_map,0);
+        child.draw(draw_handle,0, container_height,&mut self.scroll_map,0);
     }
 
     pub fn handle_key_event(&self, key_event: KeyEvent)->bool {
