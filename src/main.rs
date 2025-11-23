@@ -96,8 +96,8 @@ fn main() {
             let binding = root.clone();
             let mut root = binding.borrow_mut();
             root.draw(&mut d, 1000);
-            let a= root.get_mouse_event_handlers(mouse_event);
-            let b =root.handle_key_event(key_event);
+            let a = root.get_mouse_event_handlers(mouse_event);
+            let b = root.handle_key_event(key_event);
             let c = root.get_scroll_event_handler(scroll_event);
             if a || b || c {
                 should_rebuild_ui = true;
@@ -358,7 +358,7 @@ fn message_component(content: String, is_current_user: bool) -> Component {
                 } else {
                     Color::SLATEBLUE
                 })
-                .dim((Length::PERCENT(50), Length::FIT))
+                .dim((Length::FIT, Length::FIT))
                 .padding((10, 10, 10, 10))
                 .font_size(20)
                 .build(),
@@ -395,7 +395,7 @@ fn input_box_component() -> Component {
             true
         }))
         .bg_color(Color::LIGHTGRAY)
-        .dim((Length::FILL, Length::FIXED(40)))
+        .dim((Length::FILL, Length::FILL))
         .flex(8.0)
         .build();
     builder
@@ -406,7 +406,7 @@ fn send_button_component() -> Component {
         .content("Send")
         .font_size(20)
         .bg_color(Color::DARKGRAY)
-        .dim((Length::FILL, Length::FIXED(40)))
+        .dim((Length::FILL, Length::FILL))
         .main_align(Alignment::Center)
         .cross_align(Alignment::Center)
         .flex(2.0)
@@ -441,6 +441,7 @@ fn messages_component() -> Vec<Component> {
     messages_data
         .iter()
         .map(|(content, is_current_user)| message_component(content.clone(), *is_current_user))
+
         .collect::<Vec<_>>()
 }
 
@@ -450,7 +451,8 @@ fn input_row_component() -> Component {
 
     Layout::get_row_builder()
         .children(vec![input_box, send_button])
-        .dim((Length::FILL, Length::FIT))
+        .dim((Length::FILL, Length::FILL))
+        .flex(1f32)
         .build() as Component
 }
 
@@ -466,25 +468,37 @@ fn left_sidebar_component() -> Component {
         .padding((10, 5, 10, 5))
         .bg_color(Color::RED)
         .gap(5)
-        .flex(2.5)
+        .flex(1f32)
         .build()
 }
 
 fn chat_area_component() -> Component {
-    let mut messages = messages_component();
+    let messages = messages_component();
+    
+    let messages = Layout::get_col_builder()
+    .dim((Length::FILL, Length::FILL))
+    .bg_color(Color::BLUE)
+        .dbg_name("CHAT_AREA")
+        // .main_align(Alignment::End)
+        .children(messages)
+        .gap(2)
+        .flex(20f32)
+        .build();
     let input_row = input_row_component();
-    messages.push(input_row);
 
     Layout::get_col_builder()
         .dim((Length::FILL, Length::FILL))
-        .bg_color(Color::BLUE)
-        .flex(7.5)
-        .dbg_name("CHAT_AREA")
-        .main_align(Alignment::End)
-        .children(messages)
+        .overflow_y(false)
+        .bg_color(Color {
+            r: 200,
+            g: 200,
+            b: 200,
+            a: 255,
+        })
+        .flex(3f32)
+        .children(vec![messages, input_row])
         .build()
 }
-
 fn chat_layout() -> Component {
     let left_sidebar = left_sidebar_component();
     let chat_area = chat_area_component();
