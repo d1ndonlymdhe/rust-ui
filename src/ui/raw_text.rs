@@ -26,16 +26,16 @@ impl Base for RawText {
         //     .unwrap_or(0)
         //     //TODO find correct formula (padding)
         //     .clamp(0, max_scroll);
-        //  let (_, visible_height) = get_drawable_y_and_h(
-        //      y_offset,
-        //      container_y,
-        //      container_height,
-        //      self.pos.1,
-        //      self.get_draw_dim().1,
-        //  );
-        //  if visible_height <= self.font_size {
-        //     return;
-        //  }
+         let (_, visible_height) = get_drawable_y_and_h(
+             y_offset,
+             container_y,
+             container_height,
+             self.pos.1,
+             self.get_draw_dim().1,
+         );
+         if visible_height <= 0 {
+            return;
+         }
         draw_handle.draw_text(
             &self.content,
             self.pos.0,
