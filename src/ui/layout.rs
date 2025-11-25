@@ -215,21 +215,21 @@ impl Base for Layout {
         scroll_map: &mut HashMap<String, i32>,
         y_offset: i32,
     ) {
+        
         let scroll_height = self.get_scroll_height();
 
-        let max_scroll = (scroll_height - container_height).max(0);
-
+        let max_scroll = (scroll_height - self.get_draw_dim().1).max(0);
+        let start_y = self.get_draw_pos().1 - y_offset;
         let scroll_map_entry = scroll_map.entry(self.get_id()).or_insert(0);
         *scroll_map_entry = (*scroll_map_entry).min(max_scroll).max(0);
         let scroll_top = *scroll_map_entry;
-        let (_, visible_height) = get_drawable_y_and_h(
+        let (start_y, visible_height) = get_drawable_y_and_h(
             y_offset,
             container_y,
             container_height,
-            self.get_draw_pos().1,
+            start_y,
             self.get_draw_dim().1,
         );
-        let start_y = self.get_draw_pos().1 - y_offset;
         if visible_height > 0 {
             draw_handle.draw_rectangle(
                 self.pos.0,
@@ -310,12 +310,12 @@ impl Base for Layout {
             .sum::<f32>();
         let mut ret_id = id;
         for child in self.children.iter() {
-            let flex = child.borrow().get_flex();
+            let flex: f32 = child.borrow().get_flex();
             match self.direction {
                 Direction::Row => {
                     let allowed_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     let allowed_width = allowed_width - (self.gap * (child_len - 1));
-                    let child_width = f32::round(flex * (allowed_width as f32 / total_flex)) as i32;
+                    let child_width = f32::floor(flex * (allowed_width as f32 / total_flex)) as i32;
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.borrow_mut().set_dim((child_width, child_height));
                     ret_id = child
@@ -326,7 +326,7 @@ impl Base for Layout {
                     let allowed_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     let allowed_height = allowed_height - (self.gap * (child_len - 1));
                     let child_height =
-                        f32::round(flex * (allowed_height as f32 / total_flex)) as i32;
+                        f32::floor(flex * (allowed_height as f32 / total_flex)) as i32;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     child.borrow_mut().set_dim((child_width, child_height));
                     ret_id = child

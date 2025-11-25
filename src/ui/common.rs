@@ -31,10 +31,10 @@ pub enum ID {
 pub fn get_drawable_y_and_h(scroll_offset:i32,container_y:i32,container_height:i32,content_y:i32,content_height:i32)->(i32,i32) {
     let y_min = container_y;
     let y_max = container_y + container_height;
-    let bottom_y = content_y + content_height - scroll_offset;
+    let bottom_y = content_y + content_height;
 
-    let top_in = content_y >= y_min && content_y <= y_max;
-    let bottom_in = bottom_y >= y_min && bottom_y <= y_max;
+    let top_in = content_y >= y_min;
+    let bottom_in = bottom_y <= y_max;
 
     let (draw_y, visible_height) = if top_in && bottom_in {
         (content_y,content_height)

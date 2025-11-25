@@ -30,10 +30,10 @@ impl Base for RawText {
              y_offset,
              container_y,
              container_height,
-             self.pos.1,
+             self.pos.1 - y_offset,
              self.font_size,
          );
-         if visible_height <= 0 {
+         if visible_height < self.font_size {
             return;
          }
         draw_handle.draw_text(

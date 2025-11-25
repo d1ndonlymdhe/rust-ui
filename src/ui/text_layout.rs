@@ -263,14 +263,14 @@ impl Base for TextLayout {
             .min(max_scroll)
             .max(0);
 
-        let (_, visible_height) = get_drawable_y_and_h(
+        let start_y = self.get_draw_pos().1 - y_offset;
+        let (start_y, visible_height) = get_drawable_y_and_h(
             y_offset,
             container_y,
             container_height,
-            self.get_draw_pos().1,
+            start_y,
             self.get_draw_dim().1,
         );
-        let start_y = self.get_draw_pos().1 - y_offset;
         if visible_height > 0 {
             draw_handle.draw_rectangle(
                 self.pos.0,

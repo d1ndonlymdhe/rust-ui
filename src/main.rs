@@ -257,7 +257,7 @@ impl ChatState {
             self.add_message("Hello Alice!", "0", "1");
             self.add_message("Hi! How are you?", "1", "0");
             self.add_message("I'm good, thanks! And you?", "0", "1");
-            self.add_message("Doing well, just working on a project.", "1", "0");
+            self.add_message("Doing well, just working on a project.\n Hello There new line", "1", "0");
             self.add_message("That's great to hear!", "0", "1");
             self.add_message("What about you?", "1", "0");
             self.add_message("Same here, just busy with work.", "0", "1");
@@ -465,8 +465,9 @@ fn left_sidebar_component() -> Component {
     Layout::get_col_builder()
         .children(children)
         .dim((Length::FILL, Length::FILL))
-        .padding((10, 5, 10, 5))
+        // .padding((10, 5, 10, 5))
         .bg_color(Color::RED)
+        .dbg_name("LEFT_SIDEBAR")
         .gap(5)
         .flex(1f32)
         .build()
@@ -479,15 +480,16 @@ fn chat_area_component() -> Component {
     .dim((Length::FILL, Length::FILL))
     .bg_color(Color::BLUE)
         .dbg_name("CHAT_AREA")
+        .dim((Length::FILL,Length::PERCENT(80)))
         // .main_align(Alignment::End)
         .children(messages)
-        .gap(2)
-        .flex(10f32)
+        .flex(19f32)
         .build();
     let input_row = input_row_component();
 
     Layout::get_col_builder()
         .dim((Length::FILL, Length::FILL))
+        .main_align(Alignment::Center)
         .overflow_y(false)
         .bg_color(Color {
             r: 200,
@@ -496,7 +498,7 @@ fn chat_area_component() -> Component {
             a: 255,
         })
         .flex(3f32)
-        .children(vec![messages, input_row])
+        .children(vec![messages])
         .build()
 }
 fn chat_layout() -> Component {
