@@ -465,7 +465,7 @@ fn left_sidebar_component() -> Component {
     Layout::get_col_builder()
         .children(children)
         .dim((Length::FILL, Length::FILL))
-        // .padding((10, 5, 10, 5))
+        .padding((10, 5, 10, 5))
         .bg_color(Color::RED)
         .dbg_name("LEFT_SIDEBAR")
         .gap(5)
@@ -480,7 +480,7 @@ fn chat_area_component() -> Component {
     .dim((Length::FILL, Length::FILL))
     .bg_color(Color::BLUE)
         .dbg_name("CHAT_AREA")
-        .dim((Length::FILL,Length::PERCENT(80)))
+        .dim((Length::FILL,Length::PERCENT(100)))
         // .main_align(Alignment::End)
         .children(messages)
         .flex(19f32)
@@ -491,6 +491,7 @@ fn chat_area_component() -> Component {
         .dim((Length::FILL, Length::FILL))
         .main_align(Alignment::Center)
         .overflow_y(false)
+        .padding((10,10,10,10))
         .bg_color(Color {
             r: 200,
             g: 200,
@@ -498,7 +499,7 @@ fn chat_area_component() -> Component {
             a: 255,
         })
         .flex(3f32)
-        .children(vec![messages])
+        .children(vec![messages,input_row])
         .build()
 }
 fn chat_layout() -> Component {

@@ -19,15 +19,7 @@ impl Base for RawText {
         self.pos
     }
     fn draw(&self, draw_handle: &mut RaylibDrawHandle,container_y:i32,container_height: i32, _scroll_map: &mut HashMap<String, i32>,y_offset:i32) {
-        // let max_scroll = (self.font_size - container_height).max(0);
-        // let scroll_top = scroll_map
-        //     .get(&self.get_id())
-        //     .cloned()
-        //     .unwrap_or(0)
-        //     //TODO find correct formula (padding)
-        //     .clamp(0, max_scroll);
          let (_, visible_height) = get_drawable_y_and_h(
-             y_offset,
              container_y,
              container_height,
              self.pos.1 - y_offset,

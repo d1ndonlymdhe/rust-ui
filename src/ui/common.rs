@@ -28,7 +28,7 @@ pub enum ID {
     Manual(String),
 }
 
-pub fn get_drawable_y_and_h(scroll_offset:i32,container_y:i32,container_height:i32,content_y:i32,content_height:i32)->(i32,i32) {
+pub fn get_drawable_y_and_h(container_y:i32,container_height:i32,content_y:i32,content_height:i32)->(i32,i32) {
     let y_min = container_y;
     let y_max = container_y + container_height;
     let bottom_y = content_y + content_height;

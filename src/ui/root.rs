@@ -75,7 +75,7 @@ impl Root {
             let scroll_map = &mut self.scroll_map; 
             let entry = scroll_map.entry(handler_id);
             let scroll_offset = entry.or_insert(0);
-            *scroll_offset -= scroll_event.delta*10;
+            *scroll_offset -= scroll_event.delta*15;
             return true;
             // println!("New scroll offset: {}", scroll_offset);
             // let child = self.get_by_id(&handler_id);

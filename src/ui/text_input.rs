@@ -292,17 +292,16 @@ impl Base for TextInput {
         scroll_map: &mut HashMap<String, i32>,
         y_offset: i32,
     ) {
-        let max_scroll = (self.get_scroll_height() - container_height).max(0);
+        let max_scroll = (self.get_scroll_height() - container_height - self.get_draw_pos().1).max(0);
         let scroll_top = scroll_map
             .get(&self.get_id())
             .cloned()
             .unwrap_or(0)
             .clamp(0, max_scroll);
         let (_, visible_height) = get_drawable_y_and_h(
-            y_offset,
             container_y,
             container_height,
-            self.get_draw_pos().1,
+            self.get_draw_pos().1 - y_offset,
             self.get_draw_dim().1,
         );
 

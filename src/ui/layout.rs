@@ -172,6 +172,7 @@ impl Layout {
     }
     pub fn get_scroll_height(&self) -> i32 {
         if self.direction == Direction::Column {
+            // TODO: Ignore children with absolute positioning once that is implemented
             let last_child = self.children.last();
             if let Some(child) = last_child {
                 let child = child.borrow();
@@ -218,13 +219,16 @@ impl Base for Layout {
         
         let scroll_height = self.get_scroll_height();
 
-        let max_scroll = (scroll_height - self.get_draw_dim().1).max(0);
+        let max_scroll = (scroll_height - self.get_draw_dim().1 - self.get_draw_pos().1).max(0);
+        if self.get_id() == "CHAT_AREA" {
+            // println!("MAX SCROLL: {}", max_scroll);
+            // println!("Scroll height: {}, max scroll: {}", scroll_height, max_scroll);
+        }
         let start_y = self.get_draw_pos().1 - y_offset;
         let scroll_map_entry = scroll_map.entry(self.get_id()).or_insert(0);
         *scroll_map_entry = (*scroll_map_entry).min(max_scroll).max(0);
         let scroll_top = *scroll_map_entry;
         let (start_y, visible_height) = get_drawable_y_and_h(
-            y_offset,
             container_y,
             container_height,
             start_y,
@@ -275,28 +279,33 @@ impl Base for Layout {
         // }
         let (draw_width, draw_height) =
             crate::ui::common::get_draw_dim(self.dim, parent_dim, &self.children, &self.direction);
-        self.draw_dim = (
-            draw_width
-                + match self.direction {
-                    Direction::Row => self.padding.0 + self.padding.2,
-                    Direction::Column => 0,
-                }
-                + self.gap
-                    * match self.direction {
-                        Direction::Row => self.children.len() as i32 - 1,
-                        Direction::Column => 0,
-                    },
-            draw_height
-                + match self.direction {
-                    Direction::Column => self.padding.1 + self.padding.3,
-                    Direction::Row => 0,
-                }
-                + self.gap
-                    * match self.direction {
-                        Direction::Row => 0,
-                        Direction::Column => self.children.len() as i32 - 1,
-                    },
-        );
+        self.draw_dim = (draw_width, draw_height);
+        // self.draw_dim = (
+        //     draw_width
+        //         + match self.direction {
+        //             Direction::Row => 0,
+        //             // Direction::Row => self.padding.0 + self.padding.2,
+        //             Direction::Column => 0,
+        //         }
+        //         + self.gap
+        //             * match self.direction {
+        //                 Direction::Row => 0,
+        //                 // Direction::Row => self.children.len() as i32 - 1,
+        //                 Direction::Column => 0,
+        //             },
+        //     draw_height
+        //         + match self.direction {
+        //             Direction::Column => 0,
+        //             // Direction::Column => self.padding.1 + self.padding.3,
+        //             Direction::Row => 0,
+        //         }
+        //         + self.gap
+        //             * match self.direction {
+        //                 Direction::Row => 0,
+        //                 Direction::Column => 0
+        //                 // Direction::Column => self.children.len() as i32 - 1,
+        //             },
+        // );
     }
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
