@@ -75,7 +75,6 @@ All UI components implement the `Base` trait providing:
 [dependencies]
 lazy_static = "1.5.0"    # Global static state management
 raylib = "5.5.0"         # Graphics and windowing
-uuid = "1.18.1"          # Unique ID generation
 ```
 
 ## 🚦 Getting Started
@@ -156,25 +155,8 @@ rust-ui/
 - **Interior Mutability**: `Rc<RefCell<T>>` for single-threaded shared ownership
 - **Event Handlers**: Closures safely capture and modify state
 
-## 🎨 Styling and Layout
-
-### Color Scheme
-- **Background**: Blue chat area, red sidebar
-- **Messages**: Green for user messages, slate blue for others
-- **UI Elements**: Light gray inputs, dark gray buttons
-- **Selected User**: Light green highlight
-
-### Layout Properties
-- **Responsive**: Flex-based sizing (2.5:7.5 ratio for sidebar:chat)
-- **Padding**: Consistent spacing throughout the interface
-- **Typography**: Clear font sizes (20px messages, 24px headers)
 
 ## 🧪 Development Features
-
-### Debugging Support
-- **Debug Names**: Each component has a unique identifier
-- **Event Tracing**: Mouse and keyboard event propagation tracking
-- **Layout Inspection**: Two-pass layout system for debugging
 
 ### Extensibility
 - **Modular Design**: Easy to add new component types
@@ -184,4 +166,5 @@ rust-ui/
 ## 🚀 Future Enhancements
 
 ### Planned Features
-- **Scrollable Containers**: Handle overflow content
+- **Scrollable Containers**: Handle overflow content (Horizontal)
+- **Absolute Positioning**: Similar to CSS absolute positioning
