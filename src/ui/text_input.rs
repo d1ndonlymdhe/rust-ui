@@ -8,8 +8,7 @@ use raylib::{
 
 use crate::ui::{
     common::{
-        Alignment, Base, Direction, ID, KeyEvent, Length, MouseEvent, generate_id,
-        get_drawable_y_and_h, keyboard_key_to_char, shift_character, tabbed_print,
+        AbsoluteDraw, Alignment, Base, Direction, ID, KeyEvent, Length, MouseEvent, generate_id, get_drawable_y_and_h, keyboard_key_to_char, shift_character, tabbed_print
     },
     raw_text::RawText,
 };
@@ -291,7 +290,7 @@ impl Base for TextInput {
         container_height: i32,
         scroll_map: &mut HashMap<String, i32>,
         y_offset: i32,
-    ) {
+    ) -> Vec<AbsoluteDraw>{
         let max_scroll = (self.get_scroll_height() - container_height - self.get_draw_pos().1).max(0);
         let scroll_top = scroll_map
             .get(&self.get_id())
@@ -325,6 +324,7 @@ impl Base for TextInput {
                 y_offset + scroll_top,
             );
         }
+        vec![]
     }
     fn get_id(&self) -> String {
         match &self.dbg_name {
@@ -595,6 +595,9 @@ impl Base for TextInput {
     }
     fn get_overflow(&self) -> (bool, bool) {
         self.overflow
+    }
+    fn get_position(&self) -> super::common::Position {
+        super::common::Position::Auto
     }
 }
 

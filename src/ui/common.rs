@@ -28,7 +28,19 @@ pub enum ID {
     Manual(String),
 }
 
-pub fn get_drawable_y_and_h(container_y:i32,container_height:i32,content_y:i32,content_height:i32)->(i32,i32) {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Position {
+    Auto,
+    GlobalAbsolute(i32, i32),
+    LocalAbsolute(i32, i32),
+}
+
+pub fn get_drawable_y_and_h(
+    container_y: i32,
+    container_height: i32,
+    content_y: i32,
+    content_height: i32,
+) -> (i32, i32) {
     let y_min = container_y;
     let y_max = container_y + container_height;
     let bottom_y = content_y + content_height;
@@ -37,20 +49,46 @@ pub fn get_drawable_y_and_h(container_y:i32,container_height:i32,content_y:i32,c
     let bottom_in = bottom_y <= y_max;
 
     let (draw_y, visible_height) = if top_in && bottom_in {
-        (content_y,content_height)
+        (content_y, content_height)
     } else if !top_in && bottom_in {
-        (y_min,bottom_y - y_min)
+        (y_min, bottom_y - y_min)
     } else if top_in && !bottom_in {
         (content_y, y_max - content_y)
     } else {
-        (0,0)
+        (0, 0)
     };
     return (draw_y, visible_height);
 }
 
+#[derive(Debug, Clone)]
+pub struct AbsoluteDraw {
+    pub component_id: String,
+    pub container_y: i32,
+    pub container_height: i32,
+    pub y_offset: i32,
+}
+
+impl AbsoluteDraw {
+    pub fn new(component_id: &str, container_y: i32, container_height: i32, y_offset: i32) -> Self {
+        return AbsoluteDraw {
+            component_id: component_id.to_string(),
+            container_y,
+            container_height,
+            y_offset,
+        };
+    }
+}
+
 pub trait Base {
     fn set_pos(&mut self, pos: (i32, i32));
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle, container_y:i32,container_height: i32, scroll_map: &mut HashMap<String, i32>,y_offset:i32);
+    fn draw(
+        &self,
+        draw_handle: &mut RaylibDrawHandle,
+        container_y: i32,
+        container_height: i32,
+        scroll_map: &mut HashMap<String, i32>,
+        y_offset: i32,
+    ) -> Vec<AbsoluteDraw>;
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String>;
     fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
         let f = self.get_on_click();
@@ -60,7 +98,7 @@ pub trait Base {
     fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>;
 
     fn get_key_event_handlers(&self, key_event: KeyEvent) -> Vec<String>;
-    fn get_scroll_event_handler(&self, scroll_event: ScrollEvent) -> Option<String>{
+    fn get_scroll_event_handler(&self, scroll_event: ScrollEvent) -> Option<String> {
         let children = self.get_children();
         for child in children.iter() {
             let child = child.borrow();
@@ -78,7 +116,10 @@ pub trait Base {
             let y = draw_pos.1;
             let w = draw_dim.0;
             let h = draw_dim.1;
-            let inside = scroll_event_x >= x && scroll_event_x <= x + w && scroll_event_y >= y && scroll_event_y <= y + h;
+            let inside = scroll_event_x >= x
+                && scroll_event_x <= x + w
+                && scroll_event_y >= y
+                && scroll_event_y <= y + h;
             if inside {
                 return Some(self.get_id());
             }
@@ -114,6 +155,7 @@ pub trait Base {
     fn is_focusable(&self) -> bool {
         false
     }
+    fn get_position(&self) -> Position;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -240,8 +282,7 @@ pub fn keyboard_key_to_char(key: KeyboardKey) -> Option<char> {
     }
 }
 
-
-pub fn def_key_handler(key_event: KeyEvent,text: &mut String) -> bool {
+pub fn def_key_handler(key_event: KeyEvent, text: &mut String) -> bool {
     if let Some(key) = key_event.key {
         if key == KeyboardKey::KEY_BACKSPACE {
             text.pop();

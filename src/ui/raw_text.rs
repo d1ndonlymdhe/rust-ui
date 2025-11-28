@@ -18,7 +18,7 @@ impl Base for RawText {
     fn get_draw_pos(&self) -> (i32, i32) {
         self.pos
     }
-    fn draw(&self, draw_handle: &mut RaylibDrawHandle,container_y:i32,container_height: i32, _scroll_map: &mut HashMap<String, i32>,y_offset:i32) {
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle,container_y:i32,container_height: i32, _scroll_map: &mut HashMap<String, i32>,y_offset:i32)->Vec<AbsoluteDraw> {
          let (_, visible_height) = get_drawable_y_and_h(
              container_y,
              container_height,
@@ -26,7 +26,7 @@ impl Base for RawText {
              self.font_size,
          );
          if visible_height < self.font_size {
-            return;
+            return vec![];
          }
         draw_handle.draw_text(
             &self.content,
@@ -35,6 +35,7 @@ impl Base for RawText {
             self.font_size,
             self.color,
         );
+        vec![]
     }
     fn set_dim(&mut self, _parent_draw_dim: (i32, i32)) {
         ()
@@ -117,6 +118,9 @@ impl Base for RawText {
     }
     fn get_scroll_event_handler(&self, _scroll_event: ScrollEvent) -> Option<String> {
         None
+    }
+    fn get_position(&self) -> Position {
+        Position::Auto
     }
 }
 

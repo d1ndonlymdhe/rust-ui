@@ -25,7 +25,6 @@ lazy_static! {
 }
 
 fn main() {
-    println!("Hello, world!");
     let (mut rl, thread) = raylib::init()
         .size(1000, 1000)
         .title("Rust UI Example")
@@ -43,12 +42,6 @@ fn main() {
     }
 
     let binding = root.clone();
-    let mut scroll_top = 0.0;
-    let scroll_height = 10.0 + 99.0 * 50.0 + 30.0;
-    let container_height = 500.0;
-    let container_width = 400.0;
-    let container_y = 40.0;
-    let container_x = 40.0;
     {
         let chat_layout = chat_layout();
         let mut mut_root = binding.borrow_mut();
@@ -103,95 +96,6 @@ fn main() {
                 should_rebuild_ui = true;
             }
         }
-        // let mut d = rl.begin_drawing(&thread);
-        // d.clear_background(Color::WHITE);
-        // d.draw_rectangle(
-        //     container_x as i32,
-        //     container_y as i32,
-        //     container_width as i32,
-        //     container_height as i32,
-        //     Color::RED,
-        // );
-        // for i in 0..100 {
-        //     draw_rectangle(
-        //         &mut d,
-        //         i,
-        //         scroll_top as i32,
-        //         container_y as i32,
-        //         container_x as i32,
-        //         container_height as i32,
-        //     );
-        // }
-        // let scroll_y = d.get_mouse_wheel_move_v().y;
-        // scroll_top = (scroll_top as f32 - scroll_y * 20.0)
-        //     .clamp(0.0, scroll_height - container_height) as f32;
-    }
-}
-
-fn draw_rectangle(
-    d: &mut RaylibDrawHandle,
-    index: i32,
-    scroll_top: i32,
-    container_y: i32,
-    container_x: i32,
-    container_height: i32,
-) {
-    let y = container_y + index * 50 - scroll_top;
-    let x = container_x;
-    let Y_MIN = container_y;
-    let Y_MAX = container_y + container_height;
-    let height = 40;
-    let bottom_y = y + height;
-
-    let top_in = y >= Y_MIN && y <= Y_MAX;
-    let bottom_in = bottom_y >= Y_MIN && bottom_y <= Y_MAX;
-
-    //completely in view
-    let (draw_y, visible_height) = if top_in && bottom_in {
-        (y, height)
-    }
-    // partially out top
-    else if !top_in && bottom_in {
-        (Y_MIN, bottom_y - Y_MIN)
-    }
-    // partially out bottom
-    else if top_in && !bottom_in {
-        (y, Y_MAX - y)
-    } else {
-        (0, 0)
-    };
-    if visible_height > 0 {
-        d.draw_rectangle(x, draw_y, 300, visible_height, Color::BLUE);
-        draw_text(
-            d,
-            &format!("Item {}", index),
-            container_y,
-            container_height,
-            x,
-            y + 20,
-            10,
-            Color::WHITE,
-        );
-    }
-}
-
-fn draw_text(
-    d: &mut RaylibDrawHandle,
-    text: &str,
-    container_y: i32,
-    container_height: i32,
-    x: i32,
-    y: i32,
-    font_size: i32,
-    color: Color,
-) {
-    let Y_MIN = container_y;
-    let Y_MAX = container_y + container_height;
-    let bottom_y = y + font_size;
-    let top_in = y >= Y_MIN && y <= Y_MAX;
-    let bottom_in = bottom_y >= Y_MIN && bottom_y <= Y_MAX;
-    if top_in && bottom_in {
-        d.draw_text(text, x, y, font_size, color);
     }
 }
 
@@ -213,6 +117,7 @@ struct ChatState {
     my_id: String,
     current_user_id: String,
     draft_message: String,
+    show_delete_user_popup: bool,
 }
 
 impl ChatState {
@@ -223,6 +128,7 @@ impl ChatState {
             current_user_id: String::new(),
             my_id: "0".to_string(),
             draft_message: String::from("Hi!"),
+            show_delete_user_popup: true,
         }
     }
 
@@ -257,7 +163,11 @@ impl ChatState {
             self.add_message("Hello Alice!", "0", "1");
             self.add_message("Hi! How are you?", "1", "0");
             self.add_message("I'm good, thanks! And you?", "0", "1");
-            self.add_message("Doing well, just working on a project.\n Hello There new line", "1", "0");
+            self.add_message(
+                "Doing well, just working on a project.\n Hello There new line",
+                "1",
+                "0",
+            );
             self.add_message("That's great to hear!", "0", "1");
             self.add_message("What about you?", "1", "0");
             self.add_message("Same here, just busy with work.", "0", "1");
@@ -281,6 +191,10 @@ impl ChatState {
                 msg.sender_id == self.current_user_id || msg.receiver_id == self.current_user_id
             })
             .collect()
+    }
+
+    fn toggle_delete_user_popup(&mut self) {
+        self.show_delete_user_popup = !self.show_delete_user_popup;
     }
 }
 
@@ -441,7 +355,6 @@ fn messages_component() -> Vec<Component> {
     messages_data
         .iter()
         .map(|(content, is_current_user)| message_component(content.clone(), *is_current_user))
-
         .collect::<Vec<_>>()
 }
 
@@ -460,8 +373,11 @@ fn left_sidebar_component() -> Component {
     let header = users_header();
     let mut children = vec![header];
     let users = users_component();
+    let btn = Layout::get_row_builder()
+        .children(vec![TextLayout::get_builder().content("Delete").build()])
+        .build();
     children.extend(users);
-
+    children.push(btn);
     Layout::get_col_builder()
         .children(children)
         .dim((Length::FILL, Length::FILL))
@@ -475,12 +391,12 @@ fn left_sidebar_component() -> Component {
 
 fn chat_area_component() -> Component {
     let messages = messages_component();
-    
+
     let messages = Layout::get_col_builder()
-    .dim((Length::FILL, Length::FILL))
-    .bg_color(Color::BLUE)
+        .dim((Length::FILL, Length::FILL))
+        .bg_color(Color::BLUE)
         .dbg_name("CHAT_AREA")
-        .dim((Length::FILL,Length::PERCENT(100)))
+        .dim((Length::FILL, Length::PERCENT(100)))
         // .main_align(Alignment::End)
         .children(messages)
         .flex(19f32)
@@ -491,7 +407,7 @@ fn chat_area_component() -> Component {
         .dim((Length::FILL, Length::FILL))
         .main_align(Alignment::Center)
         .overflow_y(false)
-        .padding((10,10,10,10))
+        .padding((10, 10, 10, 10))
         .bg_color(Color {
             r: 200,
             g: 200,
@@ -499,15 +415,43 @@ fn chat_area_component() -> Component {
             a: 255,
         })
         .flex(3f32)
-        .children(vec![messages,input_row])
+        .children(vec![messages, input_row])
         .build()
 }
+
+fn delete_user_popup() -> Component {
+    Layout::get_col_builder()
+        .set_position(ui::common::Position::GlobalAbsolute(0, 500))
+        .bg_color(Color::BLACK)
+        .dim((Length::FILL,Length::FILL))
+        .children(vec![
+            TextLayout::get_builder()
+                .content("POPUP?")
+                .font_size(20)
+                .bg_color(Color::WHITE)
+                .dim((Length::FILL, Length::FIT))
+                .padding((10, 10, 10, 10))
+                .build(),
+        ])
+        .build()
+}
+
 fn chat_layout() -> Component {
     let left_sidebar = left_sidebar_component();
     let chat_area = chat_area_component();
 
+    let mut children = vec![left_sidebar, chat_area];
+    let show_popup;
+    {
+        let chat_state = CHAT_STATE.lock().unwrap();
+        show_popup = chat_state.show_delete_user_popup;
+    }
+    if show_popup {
+        children.push(delete_user_popup());
+    }
+
     Layout::get_row_builder()
         .dim((Length::FILL, Length::FILL))
-        .children(vec![left_sidebar, chat_area])
+        .children(children)
         .build()
 }

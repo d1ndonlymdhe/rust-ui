@@ -6,7 +6,6 @@ use raylib::{
 use crate::ui::common::*;
 use std::{cell::RefCell, collections::HashMap, rc::Rc, vec};
 
-
 pub struct Root {
     pub child: Rc<RefCell<dyn Base>>,
     pub draw_dim: (i32, i32),
@@ -14,8 +13,6 @@ pub struct Root {
     pub focused_id: Option<String>,
     pub scroll_map: HashMap<String, i32>,
 }
-
-
 
 impl Root {
     pub fn draw(&mut self, draw_handle: &mut RaylibDrawHandle, container_height: i32) {
@@ -25,11 +22,61 @@ impl Root {
             child_mut.set_pos(self.pos);
             child_mut.set_dim(self.draw_dim);
         }
+        let mut abs_draw = vec![];
         let child = self.child.borrow();
-        child.draw(draw_handle,0, container_height,&mut self.scroll_map,0);
+        abs_draw = child.draw(draw_handle, 0, container_height, &mut self.scroll_map, 0);
+        loop {
+            let mut new_abs_draws = vec![];
+            for draw_instruction in abs_draw.iter() {
+                let AbsoluteDraw {
+                    component_id,
+                    container_y,
+                    y_offset,
+                    ..
+                } = draw_instruction;
+
+                let instructed_height = draw_instruction.container_height;
+
+                let child = self.get_by_id(component_id);
+                if let Some(child) = child {
+                    let child = child.borrow();
+                    let child_pos = child.get_position();
+                    match child_pos {
+                        Position::Auto => {
+                            panic!("No auto children should exist here")
+                        }
+                        Position::GlobalAbsolute(_, _) => {
+                            let more_abs_draw = child.draw(
+                                draw_handle,
+                                0,
+                                container_height,
+                                &mut self.scroll_map,
+                                0,
+                            );
+                            new_abs_draws.extend(more_abs_draw);
+                        }
+                        Position::LocalAbsolute(_, _) => {
+                            let more_abs_draw = child.draw(
+                                draw_handle,
+                                *container_y,
+                                instructed_height,
+                                &mut self.scroll_map,
+                                *y_offset,
+                            );
+                            new_abs_draws.extend(more_abs_draw);
+                        }
+                    }
+                }
+            }
+            if new_abs_draws.is_empty() {
+                break;
+            } else {
+                abs_draw = new_abs_draws;
+            }
+        }
     }
 
-    pub fn handle_key_event(&self, key_event: KeyEvent)->bool {
+    pub fn handle_key_event(&self, key_event: KeyEvent) -> bool {
         if let Some(focused_id) = &self.focused_id {
             if let Some(focused_child) = self.get_by_id(focused_id) {
                 let focused_child = focused_child.borrow();
@@ -39,7 +86,7 @@ impl Root {
         }
         false
     }
-    pub fn get_mouse_event_handlers(&mut self, mouse_event: MouseEvent)->bool {
+    pub fn get_mouse_event_handlers(&mut self, mouse_event: MouseEvent) -> bool {
         let child = self.child.clone();
         let hit_children = child.borrow().get_mouse_event_handlers(mouse_event);
 
@@ -71,11 +118,10 @@ impl Root {
         }
         let child = self.child.clone();
         if let Some(handler_id) = child.borrow().get_scroll_event_handler(scroll_event) {
-
-            let scroll_map = &mut self.scroll_map; 
+            let scroll_map = &mut self.scroll_map;
             let entry = scroll_map.entry(handler_id);
             let scroll_offset = entry.or_insert(0);
-            *scroll_offset -= scroll_event.delta*15;
+            *scroll_offset -= scroll_event.delta * 15;
             return true;
             // println!("New scroll offset: {}", scroll_offset);
             // let child = self.get_by_id(&handler_id);
@@ -92,7 +138,7 @@ impl Root {
     pub fn pass_1(&mut self, _parent_draw_dim: (i32, i32)) {
         let mut mut_child = self.child.borrow_mut();
         mut_child.set_dim(self.draw_dim);
-        mut_child.pass_1(self.draw_dim,0);
+        mut_child.pass_1(self.draw_dim, 0);
     }
     pub fn pass_2(&mut self, _parent_pos: (i32, i32)) {
         self.child.borrow_mut().pass_2(self.pos);

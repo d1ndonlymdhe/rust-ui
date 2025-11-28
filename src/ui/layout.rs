@@ -1,15 +1,13 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, vec};
 
 use raylib::{
     color::Color,
     prelude::{RaylibDraw, RaylibDrawHandle},
 };
 
-use crate::ui::{
-    common::{
-        Alignment, Base, Direction, ID, Length, MouseEvent, generate_id, get_drawable_y_and_h,
-        tabbed_print,
-    },
+use crate::ui::common::{
+    AbsoluteDraw, Alignment, Base, Component, Direction, ID, Length, MouseEvent, Position,
+    generate_id, get_drawable_y_and_h, tabbed_print,
 };
 
 pub struct Layout {
@@ -30,6 +28,7 @@ pub struct Layout {
     pub children_func: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
     pub overflow: (bool, bool),
     pub scroll_offset: i32,
+    pub position: Position,
 }
 
 pub struct LayoutProps {
@@ -56,6 +55,7 @@ impl LayoutProps {
                 children_func: self.layout.children_func.clone(),
                 overflow: self.layout.overflow,
                 scroll_offset: self.layout.scroll_offset,
+                position: self.layout.position,
             },
         }
     }
@@ -81,6 +81,7 @@ impl LayoutProps {
                 children_func: None,
                 scroll_offset: 0,
                 overflow: (false, true),
+                position: Position::Auto,
             },
         }
     }
@@ -140,6 +141,10 @@ impl LayoutProps {
         self.layout.overflow.1 = overflow;
         self
     }
+    pub fn set_position(mut self, position: Position) -> Self {
+        self.layout.position = position;
+        self
+    }
     pub fn build(self) -> Rc<RefCell<Layout>> {
         let layout = self.layout;
         Rc::new(RefCell::new(Layout {
@@ -159,6 +164,7 @@ impl LayoutProps {
             children_func: layout.children_func.clone(),
             overflow: layout.overflow,
             scroll_offset: layout.scroll_offset,
+            position: layout.position,
         }))
     }
 }
@@ -196,6 +202,19 @@ impl Layout {
             max_height.max(self.draw_dim.1)
         }
     }
+    /// (Auto,Abs)
+    pub fn get_children_by_pos(&self) -> (Vec<Component>, Vec<Component>) {
+        let mut auto_children = vec![];
+        let mut abs_children = vec![];
+        for child in self.get_children() {
+            if child.borrow().get_position() == Position::Auto {
+                auto_children.push(child.clone());
+            } else {
+                abs_children.push(child.clone());
+            }
+        }
+        (auto_children, abs_children)
+    }
 }
 
 impl Base for Layout {
@@ -215,8 +234,7 @@ impl Base for Layout {
         container_height: i32,
         scroll_map: &mut HashMap<String, i32>,
         y_offset: i32,
-    ) {
-        
+    ) -> Vec<AbsoluteDraw> {
         let scroll_height = self.get_scroll_height();
 
         let max_scroll = (scroll_height - self.get_draw_dim().1 - self.get_draw_pos().1).max(0);
@@ -240,15 +258,35 @@ impl Base for Layout {
                 start_y,
                 self.draw_dim.0,
                 visible_height,
-                self.bg_color
+                self.bg_color,
             );
         }
-        for child in self.children.iter() {
-            let child = child.clone();
-            child
-                .borrow()
-                .draw(draw_handle, start_y, visible_height, scroll_map, scroll_top+y_offset);
+
+        let (auto_children, abs_children) = self.get_children_by_pos();
+        let mut abs_draw = Vec::with_capacity(abs_children.len());
+
+        for child in abs_children.iter() {
+            abs_draw.push(AbsoluteDraw::new(
+                &child.borrow().get_id(),
+                start_y,
+                visible_height,
+                scroll_top + y_offset,
+            ));
         }
+
+        for child in auto_children.iter() {
+            let child = child.clone();
+            let abs_child_draws = child.borrow().draw(
+                draw_handle,
+                start_y,
+                visible_height,
+                scroll_map,
+                scroll_top + y_offset,
+            );
+            abs_draw.extend(abs_child_draws);
+        }
+
+        abs_draw
     }
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String> {
         let mut hit_children = Vec::new();
@@ -274,38 +312,9 @@ impl Base for Layout {
         self.children.clone()
     }
     fn set_dim(&mut self, parent_dim: (i32, i32)) {
-        // if (self.dbg_name == "test_button"){
-        //     println!("Setting dim for button");
-        // }
         let (draw_width, draw_height) =
             crate::ui::common::get_draw_dim(self.dim, parent_dim, &self.children, &self.direction);
         self.draw_dim = (draw_width, draw_height);
-        // self.draw_dim = (
-        //     draw_width
-        //         + match self.direction {
-        //             Direction::Row => 0,
-        //             // Direction::Row => self.padding.0 + self.padding.2,
-        //             Direction::Column => 0,
-        //         }
-        //         + self.gap
-        //             * match self.direction {
-        //                 Direction::Row => 0,
-        //                 // Direction::Row => self.children.len() as i32 - 1,
-        //                 Direction::Column => 0,
-        //             },
-        //     draw_height
-        //         + match self.direction {
-        //             Direction::Column => 0,
-        //             // Direction::Column => self.padding.1 + self.padding.3,
-        //             Direction::Row => 0,
-        //         }
-        //         + self.gap
-        //             * match self.direction {
-        //                 Direction::Row => 0,
-        //                 Direction::Column => 0
-        //                 // Direction::Column => self.children.len() as i32 - 1,
-        //             },
-        // );
     }
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
@@ -355,8 +364,11 @@ impl Base for Layout {
         let mut padding_left = self.padding.0;
         let mut padding_top = self.padding.1;
 
+        let (auto_children, abs_children) = self.get_children_by_pos();
+
+        let auto_children_len = auto_children.len();
         let mut cross_paddings = Vec::from(
-            (0..self.children.len())
+            (0..auto_children_len)
                 .map(|_| self.padding.1)
                 .collect::<Vec<i32>>(),
         );
@@ -371,21 +383,20 @@ impl Base for Layout {
 
         if comparisons[0] != Alignment::Start {
             let self_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
-            let children_width = self
-                .children
+            let children_width = auto_children
                 .iter()
                 .map(|child| child.borrow().get_draw_dim().0);
             let children_width = match self.direction {
                 Direction::Row => children_width.sum(),
                 Direction::Column => children_width.max().unwrap(),
             };
-            let total_gap = self.gap * (self.children.len() as i32 - 1);
+            let total_gap = self.gap * (auto_children_len as i32 - 1);
             let remaining_space = self_width - children_width - total_gap;
 
             if comparisons[0] == Alignment::Center {
                 if self.direction == Direction::Column {
                     // If column and cross align center, each child is centered
-                    for (idx, child) in self.children.iter().enumerate() {
+                    for (idx, child) in auto_children.iter().enumerate() {
                         let child_width = child.borrow().get_draw_dim().0;
                         cross_paddings[idx] = self.padding.0 + (self_width - child_width) / 2;
                     }
@@ -401,15 +412,14 @@ impl Base for Layout {
 
         if comparisons[1] != Alignment::Start {
             let self_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
-            let children_height = self
-                .children
+            let children_height = auto_children
                 .iter()
                 .map(|child| child.borrow().get_draw_dim().1);
             let children_height = match self.direction {
                 Direction::Row => children_height.max().unwrap(),
                 Direction::Column => children_height.sum(),
             };
-            let total_gap = self.gap * (self.children.len() as i32 - 1);
+            let total_gap = self.gap * (auto_children_len as i32 - 1);
             let remaining_space = self_height - children_height - total_gap;
             let remaining_space = remaining_space.max(0);
             if comparisons[1] == Alignment::Center {
@@ -428,9 +438,11 @@ impl Base for Layout {
         }
         next_pos.1 += padding_top;
 
-        for (idx, child) in self.children.iter().enumerate() {
-            child.borrow_mut().pass_2(next_pos);
-            let (child_width, child_height) = child.borrow().get_draw_dim();
+        for (idx, child) in auto_children.iter().enumerate() {
+            let mut child = child.borrow_mut();
+            child.pass_2(next_pos);
+
+            let (child_width, child_height) = child.get_draw_dim();
             if idx < self.children.len() - 1 {
                 match self.direction {
                     Direction::Row => next_pos.0 += child_width + self.gap,
@@ -440,6 +452,26 @@ impl Base for Layout {
                         }
                         next_pos.1 += child_height + self.gap
                     }
+                }
+            }
+        }
+
+        //Special Handling of abs children
+        for child in abs_children.iter() {
+            let mut child = child.borrow_mut();
+            let position = child.get_position();
+            match position {
+                Position::Auto => {
+                    panic!("Auto positioned children should not reach here")
+                }
+                Position::GlobalAbsolute(x, y) => {
+                    child.pass_2((x, y));
+                }
+                Position::LocalAbsolute(x, y) => {
+                    let self_pos = self.get_draw_pos();
+                    let self_x = self_pos.0;
+                    let self_y = self_pos.1;
+                    child.pass_2((self_x + x, self_y + y));
                 }
             }
         }
@@ -513,5 +545,9 @@ impl Base for Layout {
 
     fn get_overflow(&self) -> (bool, bool) {
         self.overflow
+    }
+
+    fn get_position(&self) -> Position {
+        self.position
     }
 }
