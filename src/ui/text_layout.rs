@@ -261,10 +261,6 @@ impl Base for TextLayout {
 
         self.draw_dim.1 = visible_height;
         self.pos.1 = start_y;
-        if self_id == "MSG 0" {
-            println!("FIRST MSG");
-            println!("CHILDREN {}",self.children.len())
-        }
 
         for child in self.children.iter() {
             let mut child = child.borrow_mut();

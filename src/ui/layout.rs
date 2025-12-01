@@ -234,12 +234,6 @@ impl Base for Layout {
     ) -> Vec<AbsoluteDraw> {
         let visible_height = self.draw_dim.1;
         let start_y = self.pos.1;
-         if self.get_id() == "MSG 0" {
-            println!("DRAW FIRST MSG")
-        }
-        if visible_height <= 0 {
-            println!("DON'T DRAW {}",self.get_id());
-        }
         if visible_height > 0 {
             draw_handle.draw_rectangle(
                 self.pos.0,
