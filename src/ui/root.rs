@@ -1,6 +1,5 @@
 use raylib::{
-    color::Color,
-    prelude::{RaylibDraw, RaylibDrawHandle},
+    color::Color, ffi::KeyboardKey, prelude::{RaylibDraw, RaylibDrawHandle}
 };
 
 use crate::ui::common::*;
@@ -15,16 +14,16 @@ pub struct Root {
 }
 
 impl Root {
-    pub fn draw(&mut self, draw_handle: &mut RaylibDrawHandle, container_height: i32) {
+    pub fn draw(&mut self, draw_handle: &mut RaylibDrawHandle) {
         draw_handle.clear_background(Color::BLACK);
         {
             let mut child_mut = self.child.borrow_mut();
             child_mut.set_pos(self.pos);
-            child_mut.set_dim(self.draw_dim);
+            child_mut.set_raw_dim(self.draw_dim);
         }
         let mut abs_draw = vec![];
         let child = self.child.borrow();
-        abs_draw = child.draw(draw_handle, 0, container_height, &mut self.scroll_map, 0);
+        abs_draw = child.draw(draw_handle);
         loop {
             let mut new_abs_draws = vec![];
             for draw_instruction in abs_draw.iter() {
@@ -48,20 +47,14 @@ impl Root {
                         Position::GlobalAbsolute(_, _) => {
                             let more_abs_draw = child.draw(
                                 draw_handle,
-                                0,
-                                container_height,
-                                &mut self.scroll_map,
-                                0,
+                                
                             );
                             new_abs_draws.extend(more_abs_draw);
                         }
                         Position::LocalAbsolute(_, _) => {
                             let more_abs_draw = child.draw(
                                 draw_handle,
-                                *container_y,
-                                instructed_height,
-                                &mut self.scroll_map,
-                                *y_offset,
+                                
                             );
                             new_abs_draws.extend(more_abs_draw);
                         }
@@ -77,6 +70,10 @@ impl Root {
     }
 
     pub fn handle_key_event(&self, key_event: KeyEvent) -> bool {
+        if key_event.ctrl_down && key_event.key.is_some_and(|v|{v==KeyboardKey::KEY_D}){
+            println!("DEBUG DIMS");
+            self.debug_dims(0);
+        }
         if let Some(focused_id) = &self.focused_id {
             if let Some(focused_child) = self.get_by_id(focused_id) {
                 let focused_child = focused_child.borrow();
@@ -105,6 +102,7 @@ impl Root {
                 }
             }
         }
+
         if mouse_event.left_button_down {
             self.focused_id = focused_id;
             return true;
@@ -135,13 +133,16 @@ impl Root {
         false
     }
 
-    pub fn pass_1(&mut self, _parent_draw_dim: (i32, i32)) {
+    pub fn pass_1(&mut self) {
         let mut mut_child = self.child.borrow_mut();
-        mut_child.set_dim(self.draw_dim);
+        mut_child.set_raw_dim(self.draw_dim);
         mut_child.pass_1(self.draw_dim, 0);
     }
-    pub fn pass_2(&mut self, _parent_pos: (i32, i32)) {
+    pub fn pass_2(&mut self) {
         self.child.borrow_mut().pass_2(self.pos);
+    }
+    pub fn pass_overflow(&mut self){
+        self.child.borrow_mut().pass_overflow((self.draw_dim), self.pos, &mut self.scroll_map, 0);
     }
     pub fn debug_dims(&self, depth: usize) {
         tabbed_print(

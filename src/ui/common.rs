@@ -84,10 +84,6 @@ pub trait Base {
     fn draw(
         &self,
         draw_handle: &mut RaylibDrawHandle,
-        container_y: i32,
-        container_height: i32,
-        scroll_map: &mut HashMap<String, i32>,
-        y_offset: i32,
     ) -> Vec<AbsoluteDraw>;
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String>;
     fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
@@ -132,11 +128,12 @@ pub trait Base {
         f(key_event)
     }
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(KeyEvent) -> bool>>;
-    fn set_dim(&mut self, parent_draw_dim: (i32, i32));
+    fn set_raw_dim(&mut self, parent_draw_dim: (i32, i32));
     fn get_draw_dim(&self) -> (i32, i32);
     fn get_draw_pos(&self) -> (i32, i32);
     fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize;
     fn pass_2(&mut self, parent_pos: (i32, i32));
+    fn pass_overflow(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), scroll_map: &mut HashMap<String, i32>,y_offset: i32);
     fn get_overflow(&self) -> (bool, bool);
     fn get_flex(&self) -> f32;
     fn debug_dims(&self, depth: usize);
@@ -174,6 +171,7 @@ pub struct ScrollEvent {
 pub struct KeyEvent {
     pub key: Option<KeyboardKey>,
     pub shift_down: bool,
+    pub ctrl_down: bool,
 }
 
 pub fn get_draw_dim(

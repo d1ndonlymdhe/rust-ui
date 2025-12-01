@@ -46,36 +46,31 @@ fn main() {
         let chat_layout = chat_layout();
         let mut mut_root = binding.borrow_mut();
         mut_root.set_children(vec![chat_layout]);
-        mut_root.pass_1((0, 0));
-        mut_root.pass_2((0, 0));
+        mut_root.pass_1();
+        mut_root.pass_2();
+        mut_root.pass_overflow();
         mut_root.debug_dims(0);
     }
     rl.set_target_fps(60);
     let mut should_rebuild_ui = true;
+
     while !rl.window_should_close() {
-        if should_rebuild_ui {
-            {
-                let chat_layout = chat_layout();
-                let mut mut_root = binding.borrow_mut();
-                mut_root.set_children(vec![chat_layout]);
-                mut_root.pass_1((0, 0));
-                mut_root.pass_2((0, 0));
-            }
-            should_rebuild_ui = false;
-        }
         let mouse_pos = rl.get_mouse_position();
         let left_mouse_pressed = rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
 
         let key = rl.get_key_pressed();
         let shift_down = rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
             || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
-        let mut d = rl.begin_drawing(&thread);
+
+        let ctrl_down = rl.is_key_down(KeyboardKey::KEY_LEFT_CONTROL)
+            || rl.is_key_down(KeyboardKey::KEY_RIGHT_CONTROL);
 
         let mouse_event = MouseEvent {
             pos: (mouse_pos.x as i32, mouse_pos.y as i32),
             left_button_down: left_mouse_pressed,
         };
 
+        let mut d = rl.begin_drawing(&thread);
         let wheel_move = d.get_mouse_wheel_move_v();
         let scroll_y = wheel_move.y;
 
@@ -84,17 +79,32 @@ fn main() {
             delta: scroll_y as i32,
         };
 
-        let key_event = KeyEvent { key, shift_down };
+        let key_event = KeyEvent {
+            key,
+            shift_down,
+            ctrl_down,
+        };
         {
             let binding = root.clone();
             let mut root = binding.borrow_mut();
-            root.draw(&mut d, 1000);
             let a = root.get_mouse_event_handlers(mouse_event);
             let b = root.handle_key_event(key_event);
             let c = root.get_scroll_event_handler(scroll_event);
             if a || b || c {
                 should_rebuild_ui = true;
             }
+        }
+        if should_rebuild_ui {
+            {
+                let chat_layout = chat_layout();
+                let mut mut_root = binding.borrow_mut();
+                mut_root.set_children(vec![chat_layout]);
+                mut_root.pass_1();
+                mut_root.pass_2();
+                mut_root.pass_overflow();
+            }
+            root.borrow_mut().draw(&mut d);
+            should_rebuild_ui = false;
         }
     }
 }
@@ -261,7 +271,7 @@ fn users_component() -> Vec<Component> {
         .collect::<Vec<_>>()
 }
 
-fn message_component(content: String, is_current_user: bool) -> Component {
+fn message_component(content: String, is_current_user: bool, idx: usize) -> Component {
     Layout::get_col_builder()
         .children(vec![
             TextLayout::get_builder()
@@ -273,6 +283,7 @@ fn message_component(content: String, is_current_user: bool) -> Component {
                     Color::SLATEBLUE
                 })
                 .dim((Length::FIT, Length::FIT))
+                .dbg_name(&format!("MSG {}", idx))
                 .padding((10, 10, 10, 10))
                 .font_size(20)
                 .build(),
@@ -354,7 +365,10 @@ fn messages_component() -> Vec<Component> {
 
     messages_data
         .iter()
-        .map(|(content, is_current_user)| message_component(content.clone(), *is_current_user))
+        .enumerate()
+        .map(|(idx, (content, is_current_user))| {
+            message_component(content.clone(), *is_current_user, idx)
+        })
         .collect::<Vec<_>>()
 }
 
@@ -423,7 +437,7 @@ fn delete_user_popup() -> Component {
     Layout::get_col_builder()
         .set_position(ui::common::Position::GlobalAbsolute(0, 500))
         .bg_color(Color::BLACK)
-        .dim((Length::FILL,Length::FILL))
+        .dim((Length::FILL, Length::FILL))
         .children(vec![
             TextLayout::get_builder()
                 .content("POPUP?")
@@ -447,7 +461,7 @@ fn chat_layout() -> Component {
         show_popup = chat_state.show_delete_user_popup;
     }
     if show_popup {
-        children.push(delete_user_popup());
+        // children.push(delete_user_popup());
     }
 
     Layout::get_row_builder()

@@ -286,31 +286,13 @@ impl Base for TextInput {
     fn draw(
         &self,
         draw_handle: &mut RaylibDrawHandle,
-        container_y: i32,
-        container_height: i32,
-        scroll_map: &mut HashMap<String, i32>,
-        y_offset: i32,
     ) -> Vec<AbsoluteDraw>{
-        let max_scroll = (self.get_scroll_height() - container_height - self.get_draw_pos().1).max(0);
-        let scroll_top = scroll_map
-            .get(&self.get_id())
-            .cloned()
-            .unwrap_or(0)
-            .clamp(0, max_scroll);
-        let (_, visible_height) = get_drawable_y_and_h(
-            container_y,
-            container_height,
-            self.get_draw_pos().1 - y_offset,
-            self.get_draw_dim().1,
-        );
-
-        let start_y = self.get_draw_pos().1 - y_offset;
-        if visible_height > 0 {
+        if self.draw_dim.1 > 0 {
             draw_handle.draw_rectangle(
                 self.pos.0,
-                start_y,
+                self.pos.1,
                 self.draw_dim.0,
-                visible_height,
+                self.draw_dim.1,
                 self.bg_color,
             );
         }
@@ -318,13 +300,27 @@ impl Base for TextInput {
             let child = child.clone();
             child.borrow().draw(
                 draw_handle,
-                start_y,
-                visible_height,
-                scroll_map,
-                y_offset + scroll_top,
             );
         }
         vec![]
+    }
+    fn get_children(&self) -> Vec<Rc<RefCell<dyn Base>>> {
+        self.children.clone()
+    }
+    fn pass_overflow(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), scroll_map: &mut HashMap<String, i32>,y_offset: i32) {
+        let scroll_height = self.get_scroll_height();
+        let max_scroll = (scroll_height - self.get_draw_dim().1 - self.get_draw_pos().1).max(0);
+        let start_y = self.get_draw_pos().1 - y_offset;
+        let scroll_map_entry = scroll_map.entry(self.get_id()).or_insert(0);
+        *scroll_map_entry = (*scroll_map_entry).min(max_scroll).max(0);
+        let scroll_top = *scroll_map_entry;
+        let (start_y,visible_height) = get_drawable_y_and_h(parent_pos.1, parent_draw_dim.1, start_y, self.get_draw_dim().1);
+        self.set_raw_dim((self.get_draw_dim().0,visible_height));
+        self.set_pos((self.get_draw_pos().0,start_y));
+        for child in self.get_children().iter() {
+            let mut child = child.borrow_mut();
+            child.pass_overflow(self.get_draw_dim(), self.get_draw_pos(), scroll_map, scroll_top+y_offset);
+        }
     }
     fn get_id(&self) -> String {
         match &self.dbg_name {
@@ -367,7 +363,7 @@ impl Base for TextInput {
         let mut user_fun = self.on_click.borrow_mut();
         user_fun(mouse_event)
     }
-    fn set_dim(&mut self, parent_dim: (i32, i32)) {
+    fn set_raw_dim(&mut self, parent_dim: (i32, i32)) {
         self.children = vec![RawText::new(
             &self.content.borrow(),
             self.font_size,
@@ -435,7 +431,7 @@ impl Base for TextInput {
                     let allowed_width = allowed_width - (self.gap * (child_len - 1));
                     let child_width = f32::round(flex * (allowed_width as f32 / total_flex)) as i32;
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
-                    child.borrow_mut().set_dim((child_width, child_height));
+                    child.borrow_mut().set_raw_dim((child_width, child_height));
                     ret_id = child
                         .borrow_mut()
                         .pass_1((child_width, child_height), ret_id + 1);
@@ -446,7 +442,7 @@ impl Base for TextInput {
                     let child_height =
                         f32::round(flex * (allowed_height as f32 / total_flex)) as i32;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
-                    child.borrow_mut().set_dim((child_width, child_height));
+                    child.borrow_mut().set_raw_dim((child_width, child_height));
                     ret_id = child
                         .borrow_mut()
                         .pass_1((child_width, child_height), ret_id + 1);
@@ -454,7 +450,7 @@ impl Base for TextInput {
             }
         }
 
-        self.set_dim(parent_draw_dim);
+        self.set_raw_dim(parent_draw_dim);
         ret_id = ret_id + 1;
         if let ID::Auto(_) = &self.dbg_name {
             self.dbg_name = ID::Auto(ret_id.to_string());
