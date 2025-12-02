@@ -3,6 +3,7 @@ mod ui {
     pub mod layout;
     pub mod raw_text;
     pub mod root;
+    // pub mod text_input;
     pub mod text_input;
     pub mod text_layout;
 }
@@ -17,8 +18,8 @@ use ui::root::Root;
 
 use crate::ui::common::{Alignment, Component, KeyEvent, ScrollEvent, def_key_handler};
 use crate::ui::layout::Layout;
-use crate::ui::text_input::TextInput;
-use crate::ui::text_layout::TextLayout;
+use crate::ui::text_input::TextInput as TextInput;
+use crate::ui::text_layout::TextLayout as TextLayout;
 
 lazy_static! {
     static ref CHAT_STATE: Arc<Mutex<ChatState>> = Arc::new(Mutex::new(ChatState::new()));

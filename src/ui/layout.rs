@@ -167,6 +167,28 @@ impl LayoutProps {
             position: layout.position,
         }))
     }
+    pub fn get_layout(self)->Layout {
+        let layout = self.layout;
+        Layout {
+            children: layout.children.clone(),
+            dim: layout.dim,
+            draw_dim: layout.draw_dim,
+            pos: layout.pos,
+            bg_color: layout.bg_color,
+            direction: layout.direction,
+            padding: layout.padding,
+            main_align: layout.main_align,
+            cross_align: layout.cross_align,
+            gap: layout.gap,
+            dbg_name: layout.dbg_name.clone(),
+            flex: layout.flex,
+            on_click: layout.on_click.clone(),
+            children_func: layout.children_func.clone(),
+            overflow: layout.overflow,
+            scroll_offset: layout.scroll_offset,
+            position: layout.position,
+        }
+    }
 }
 
 impl Layout {
@@ -519,12 +541,8 @@ impl Base for Layout {
         }
         tabbed_print("</layout>", depth);
     }
-    fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>) {
-        self.children = children;
-    }
-    fn on_click(&mut self, f: Box<dyn FnMut(MouseEvent) -> bool>) {
-        self.on_click = Rc::new(RefCell::new(f));
-    }
+    
+    
     fn get_id(&self) -> String {
         match &self.dbg_name {
             ID::Auto(name) => name.clone(),

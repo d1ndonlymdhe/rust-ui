@@ -83,19 +83,12 @@ impl Base for RawText {
     fn get_flex(&self) -> f32 {
         1.0
     }
-    fn add_child(&mut self, child: Rc<RefCell<dyn Base>>) {
-        ()
-    }
-
+    
     fn get_mouse_event_handlers(&self, _mouse_event: MouseEvent) -> Vec<String> {
         Vec::new()
     }
-    fn set_children(&mut self, _children: Vec<Rc<RefCell<dyn Base>>>) {
-        panic!("RawText cannot have children");
-    }
-    fn on_click(&mut self, _f: Box<dyn FnMut(MouseEvent) -> bool>) {
-        panic!("RawText cannot have on_click");
-    }
+    
+    
     fn get_id(&self) -> String {
         match &self.dbg_name {
             ID::Auto(name) => name.clone(),

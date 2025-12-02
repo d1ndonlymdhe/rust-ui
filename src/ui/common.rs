@@ -137,16 +137,10 @@ pub trait Base {
     fn get_overflow(&self) -> (bool, bool);
     fn get_flex(&self) -> f32;
     fn debug_dims(&self, depth: usize);
-    fn set_children(&mut self, children: Vec<Rc<RefCell<dyn Base>>>);
     fn get_children(&self) -> Vec<Rc<RefCell<dyn Base>>> {
         Vec::new()
     }
-    fn add_child(&mut self, child: Rc<RefCell<dyn Base>>) {
-        let mut children = self.get_children();
-        children.push(child);
-        self.set_children(children);
-    }
-    fn on_click(&mut self, f: Box<dyn FnMut(MouseEvent) -> bool>);
+    
     fn get_id(&self) -> String;
     fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>>;
     fn is_focusable(&self) -> bool {
