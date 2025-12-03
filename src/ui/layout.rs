@@ -518,7 +518,7 @@ impl Base for Layout {
     fn debug_dims(&self, depth: usize) {
         tabbed_print(
             &format!(
-                "<layout width={} height={} x={} y={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} name='{}' flex={}>",
+                "<layout width={} height={} x={} y={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} position={:?} name='{}' flex={}>",
                 self.draw_dim.0,
                 self.draw_dim.1,
                 self.pos.0,
@@ -531,6 +531,7 @@ impl Base for Layout {
                 self.direction,
                 self.main_align,
                 self.cross_align,
+                self.get_position(),
                 self.get_id(),
                 self.flex
             ),

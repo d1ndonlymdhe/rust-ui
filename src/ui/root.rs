@@ -44,17 +44,15 @@ impl Root {
                         Position::Auto => {
                             panic!("No auto children should exist here")
                         }
-                        Position::GlobalAbsolute(_, _) => {
+                        Position::Sticky(_, _) => {
                             let more_abs_draw = child.draw(
                                 draw_handle,
-                                
                             );
                             new_abs_draws.extend(more_abs_draw);
                         }
-                        Position::LocalAbsolute(_, _) => {
+                        Position::Abs(_, _) => {
                             let more_abs_draw = child.draw(
                                 draw_handle,
-                                
                             );
                             new_abs_draws.extend(more_abs_draw);
                         }
@@ -71,7 +69,7 @@ impl Root {
 
     pub fn handle_key_event(&self, key_event: KeyEvent) -> bool {
         if key_event.ctrl_down && key_event.key.is_some_and(|v|{v==KeyboardKey::KEY_D}){
-            println!("DEBUG DIMS");
+                ("DEBUG DIMS");
             self.debug_dims(0);
         }
         if let Some(focused_id) = &self.focused_id {

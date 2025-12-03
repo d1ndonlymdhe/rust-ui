@@ -18,8 +18,8 @@ use ui::root::Root;
 
 use crate::ui::common::{Alignment, Component, KeyEvent, ScrollEvent, def_key_handler};
 use crate::ui::layout::Layout;
-use crate::ui::text_input::TextInput as TextInput;
-use crate::ui::text_layout::TextLayout as TextLayout;
+use crate::ui::text_input::TextInput;
+use crate::ui::text_layout::TextLayout;
 
 lazy_static! {
     static ref CHAT_STATE: Arc<Mutex<ChatState>> = Arc::new(Mutex::new(ChatState::new()));
@@ -170,21 +170,20 @@ impl ChatState {
 
     fn seed_messages(&mut self) {
         //Alice
-        for _ in 0..3 {
-            self.add_message("Hello Alice!", "0", "1");
-            self.add_message("Hi! How are you?", "1", "0");
-            self.add_message("I'm good, thanks! And you?", "0", "1");
-            self.add_message(
-                "Doing well, just working on a project.\n Hello There new line",
-                "1",
-                "0",
-            );
-            self.add_message("That's great to hear!", "0", "1");
-            self.add_message("What about you?", "1", "0");
-            self.add_message("Same here, just busy with work.", "0", "1");
-            self.add_message("We should catch up sometime.", "1", "0");
-            self.add_message("Definitely! Let's plan for it.", "0", "1");
-        }
+
+        self.add_message("Hello Alice!", "0", "1");
+        self.add_message("Hi! How are you?", "1", "0");
+        self.add_message("I'm good, thanks! And you?", "0", "1");
+        self.add_message(
+            "Doing well, just working on a project.\n Hello There new line",
+            "1",
+            "0",
+        );
+        // self.add_message("That's great to hear!", "0", "1");
+        // self.add_message("What about you?", "1", "0");
+        // self.add_message("Same here, just busy with work.", "0", "1");
+        // self.add_message("We should catch up sometime.", "1", "0");
+        // self.add_message("Definitely! Let's plan for it.", "0", "1");
 
         //Bob
         self.add_message("Hey Bob!", "0", "2");
@@ -436,15 +435,15 @@ fn chat_area_component() -> Component {
 
 fn delete_user_popup() -> Component {
     Layout::get_col_builder()
-        .set_position(ui::common::Position::GlobalAbsolute(0, 500))
+        .set_position(ui::common::Position::Sticky(0, 20))
         .bg_color(Color::BLACK)
-        .dim((Length::FILL, Length::FILL))
+        .dim((Length::FIT, Length::FIT))
         .children(vec![
             TextLayout::get_builder()
                 .content("POPUP?")
                 .font_size(20)
                 .bg_color(Color::WHITE)
-                .dim((Length::FILL, Length::FIT))
+                .dim((Length::FIT, Length::FIT))
                 .padding((10, 10, 10, 10))
                 .build(),
         ])
@@ -462,7 +461,7 @@ fn chat_layout() -> Component {
         show_popup = chat_state.show_delete_user_popup;
     }
     if show_popup {
-        // children.push(delete_user_popup());
+        children.push(delete_user_popup());
     }
 
     Layout::get_row_builder()

@@ -31,9 +31,11 @@ pub enum ID {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Position {
     Auto,
-    GlobalAbsolute(i32, i32),
-    LocalAbsolute(i32, i32),
+    Sticky(i32,i32),
+    Abs(i32,i32)
 }
+
+
 
 pub fn get_drawable_y_and_h(
     container_y: i32,
