@@ -170,20 +170,21 @@ impl ChatState {
 
     fn seed_messages(&mut self) {
         //Alice
-
-        self.add_message("Hello Alice!", "0", "1");
-        self.add_message("Hi! How are you?", "1", "0");
-        self.add_message("I'm good, thanks! And you?", "0", "1");
-        self.add_message(
-            "Doing well, just working on a project.\n Hello There new line",
-            "1",
-            "0",
-        );
-        // self.add_message("That's great to hear!", "0", "1");
-        // self.add_message("What about you?", "1", "0");
-        // self.add_message("Same here, just busy with work.", "0", "1");
-        // self.add_message("We should catch up sometime.", "1", "0");
-        // self.add_message("Definitely! Let's plan for it.", "0", "1");
+        for _ in 0..3 {
+            self.add_message("Hello Alice!", "0", "1");
+            self.add_message("Hi! How are you?", "1", "0");
+            self.add_message("I'm good, thanks! And you?", "0", "1");
+            self.add_message(
+                "Doing well, just working on a project.\n Hello There new line",
+                "1",
+                "0",
+            );
+            self.add_message("That's great to hear!", "0", "1");
+            self.add_message("What about you?", "1", "0");
+            self.add_message("Same here, just busy with work.", "0", "1");
+            self.add_message("We should catch up sometime.", "1", "0");
+            self.add_message("Definitely! Let's plan for it.", "0", "1");
+        }
 
         //Bob
         self.add_message("Hey Bob!", "0", "2");
@@ -404,15 +405,17 @@ fn left_sidebar_component() -> Component {
 }
 
 fn chat_area_component() -> Component {
+    let mut children = vec![delete_user_popup()];
     let messages = messages_component();
-
+    children.extend(messages);
+    // messages.push(delete_user_popup());
     let messages = Layout::get_col_builder()
         .dim((Length::FILL, Length::FILL))
         .bg_color(Color::BLUE)
         .dbg_name("CHAT_AREA")
         .dim((Length::FILL, Length::PERCENT(100)))
         // .main_align(Alignment::End)
-        .children(messages)
+        .children(children)
         .flex(19f32)
         .build();
     let input_row = input_row_component();
@@ -421,7 +424,7 @@ fn chat_area_component() -> Component {
         .dim((Length::FILL, Length::FILL))
         .main_align(Alignment::Center)
         .overflow_y(false)
-        .padding((10, 10, 10, 10))
+        .padding((10, 50, 10, 10))
         .bg_color(Color {
             r: 200,
             g: 200,
@@ -435,9 +438,11 @@ fn chat_area_component() -> Component {
 
 fn delete_user_popup() -> Component {
     Layout::get_col_builder()
-        .set_position(ui::common::Position::Sticky(0, 20))
+        .set_position(ui::common::Position::Sticky(0, 200))
         .bg_color(Color::BLACK)
-        .dim((Length::FIT, Length::FIT))
+        .dim((Length::FIT, Length::FIXED(100)))
+        .dbg_name("DLT_POPUP")
+        // .flex(0.1)
         .children(vec![
             TextLayout::get_builder()
                 .content("POPUP?")
@@ -446,6 +451,34 @@ fn delete_user_popup() -> Component {
                 .dim((Length::FIT, Length::FIT))
                 .padding((10, 10, 10, 10))
                 .build(),
+            TextLayout::get_builder()
+                .content("POPUP?")
+                .font_size(20)
+                .bg_color(Color::WHITE)
+                .dim((Length::FIT, Length::FIT))
+                .padding((10, 10, 10, 10))
+                .build(),
+                TextLayout::get_builder()
+                .content("POPUP?")
+                .font_size(20)
+                .bg_color(Color::WHITE)
+                .dim((Length::FIT, Length::FIT))
+                .padding((10, 10, 10, 10))
+                .build(),
+                TextLayout::get_builder()
+                .content("POPUP?")
+                .font_size(20)
+                .bg_color(Color::WHITE)
+                .dim((Length::FIT, Length::FIT))
+                .padding((10, 10, 10, 10))
+                .build(),
+                TextLayout::get_builder()
+                .content("POPUP?")
+                .font_size(20)
+                .bg_color(Color::WHITE)
+                .dim((Length::FIT, Length::FIT))
+                .padding((10, 10, 10, 10))
+                .build()
         ])
         .build()
 }
@@ -460,9 +493,9 @@ fn chat_layout() -> Component {
         let chat_state = CHAT_STATE.lock().unwrap();
         show_popup = chat_state.show_delete_user_popup;
     }
-    if show_popup {
-        children.push(delete_user_popup());
-    }
+    // if show_popup {
+    //     children.push(delete_user_popup());
+    // }
 
     Layout::get_row_builder()
         .dim((Length::FILL, Length::FILL))

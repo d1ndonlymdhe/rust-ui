@@ -29,12 +29,7 @@ impl Root {
             for draw_instruction in abs_draw.iter() {
                 let AbsoluteDraw {
                     component_id,
-                    container_y,
-                    y_offset,
-                    ..
                 } = draw_instruction;
-
-                let instructed_height = draw_instruction.container_height;
 
                 let child = self.get_by_id(component_id);
                 if let Some(child) = child {
@@ -119,14 +114,6 @@ impl Root {
             let scroll_offset = entry.or_insert(0);
             *scroll_offset -= scroll_event.delta * 15;
             return true;
-            // println!("New scroll offset: {}", scroll_offset);
-            // let child = self.get_by_id(&handler_id);
-            // if let Some(child) = child {
-
-            //     println!("Found scroll handler: {}", handler_id);
-            //     // let mut child = child.borrow_mut();
-            //     // child.execute_on_scroll(scroll_event);
-            // }
         }
         false
     }
@@ -171,7 +158,6 @@ impl Root {
             match self.child.try_borrow_mut() {
                 Ok(_) => Some(self.child.clone()),
                 Err(_) => {
-                    println!("Failed to borrow div");
                     None
                 }
             }

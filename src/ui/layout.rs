@@ -167,7 +167,7 @@ impl LayoutProps {
             position: layout.position,
         }))
     }
-    pub fn get_layout(self)->Layout {
+    pub fn get_layout(self) -> Layout {
         let layout = self.layout;
         Layout {
             children: layout.children.clone(),
@@ -199,43 +199,32 @@ impl Layout {
         LayoutProps::new().direction(Direction::Column)
     }
     pub fn get_scroll_height(&self) -> i32 {
-        if self.direction == Direction::Column {
-            // TODO: Ignore children with absolute positioning once that is implemented
-            let last_child = self.children.last();
-            if let Some(child) = last_child {
-                let child = child.borrow();
-                let (_, child_height) = child.get_draw_dim();
-                let child_y = child.get_draw_pos().1;
-                child_height + child_y
-            } else {
-                0
-            }
-        } else {
-            let mut max_height = 0;
-            for child in self.children.iter() {
-                let child = child.borrow();
-                let (_, child_height) = child.get_draw_dim();
-                let child_pos = child.get_draw_pos().1;
-                let total_height = child_height + child_pos;
-                if total_height > max_height {
-                    max_height = total_height;
-                }
-            }
-            max_height.max(self.draw_dim.1)
-        }
+        let (auto_children, abs_children, _sticky_children) = self.get_children_by_pos();
+
+        let mut concerned_children = auto_children;
+        concerned_children.extend(abs_children);
+
+        concerned_children
+            .iter()
+            .map(|child| child.borrow().get_draw_pos().1 + child.borrow().get_draw_dim().1)
+            .max()
+            .unwrap_or(0)
     }
-    /// (Auto,Abs)
-    pub fn get_children_by_pos(&self) -> (Vec<Component>, Vec<Component>) {
+    /// (Auto,Abs,Sticky)
+    pub fn get_children_by_pos(&self) -> (Vec<Component>, Vec<Component>, Vec<Component>) {
         let mut auto_children = vec![];
         let mut abs_children = vec![];
+        let mut sticky_children = vec![];
         for child in self.get_children() {
-            if child.borrow().get_position() == Position::Auto {
-                auto_children.push(child.clone());
-            } else {
-                abs_children.push(child.clone());
+            let child_ref = child.clone();
+            let child_ref = child_ref.borrow();
+            match child_ref.get_position() {
+                Position::Auto => auto_children.push(child.clone()),
+                Position::Abs(_, _) => abs_children.push(child.clone()),
+                Position::Sticky(_, _) => sticky_children.push(child.clone()),
             }
         }
-        (auto_children, abs_children)
+        (auto_children, abs_children, sticky_children)
     }
 }
 
@@ -249,11 +238,7 @@ impl Base for Layout {
     fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
         self.on_click.clone()
     }
-    fn draw(
-        &self,
-        draw_handle: &mut RaylibDrawHandle,
-       
-    ) -> Vec<AbsoluteDraw> {
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle) -> Vec<AbsoluteDraw> {
         let visible_height = self.draw_dim.1;
         let start_y = self.pos.1;
         if visible_height > 0 {
@@ -266,23 +251,17 @@ impl Base for Layout {
             );
         }
 
-        let (auto_children, abs_children) = self.get_children_by_pos();
+        let (auto_children, mut abs_children, sticky_children) = self.get_children_by_pos();
+        abs_children.extend(sticky_children);
         let mut abs_draw = Vec::with_capacity(abs_children.len());
 
         for child in abs_children.iter() {
-            abs_draw.push(AbsoluteDraw::new(
-                &child.borrow().get_id(),
-                start_y,
-                visible_height,
-                0
-            ));
+            abs_draw.push(AbsoluteDraw::new(&child.borrow().get_id()));
         }
 
         for child in auto_children.iter() {
             let child = child.clone();
-            let abs_child_draws = child.borrow().draw(
-                draw_handle,
-            );
+            let abs_child_draws = child.borrow().draw(draw_handle);
             abs_draw.extend(abs_child_draws);
         }
 
@@ -320,19 +299,21 @@ impl Base for Layout {
         self.draw_dim
     }
     fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
-        let child_len = self.children.len() as i32;
-        let total_flex = self
-            .children
+        let (auto_children, mut abs_children, sticky_children) = self.get_children_by_pos();
+        abs_children.extend(sticky_children);
+        // let auto_children = self.get_children();
+        let auto_children_len = auto_children.len() as i32;
+        let total_flex = auto_children
             .iter()
             .map(|child| child.borrow().get_flex())
             .sum::<f32>();
         let mut ret_id = id;
-        for child in self.children.iter() {
+        for child in auto_children.iter() {
             let flex: f32 = child.borrow().get_flex();
             match self.direction {
                 Direction::Row => {
                     let allowed_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
-                    let allowed_width = allowed_width - (self.gap * (child_len - 1));
+                    let allowed_width = allowed_width - (self.gap * (auto_children_len - 1));
                     let child_width = f32::floor(flex * (allowed_width as f32 / total_flex)) as i32;
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.borrow_mut().set_raw_dim((child_width, child_height));
@@ -342,7 +323,7 @@ impl Base for Layout {
                 }
                 Direction::Column => {
                     let allowed_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
-                    let allowed_height = allowed_height - (self.gap * (child_len - 1));
+                    let allowed_height = allowed_height - (self.gap * (auto_children_len - 1));
                     let child_height =
                         f32::floor(flex * (allowed_height as f32 / total_flex)) as i32;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
@@ -353,7 +334,11 @@ impl Base for Layout {
                 }
             }
         }
+
         self.set_raw_dim(parent_draw_dim);
+        for child in abs_children.iter() {
+            ret_id = child.borrow_mut().pass_1(self.draw_dim, ret_id + 1)
+        }
         ret_id = ret_id + 1;
         if let ID::Auto(_) = &self.dbg_name {
             self.dbg_name = ID::Auto(ret_id.to_string());
@@ -361,19 +346,41 @@ impl Base for Layout {
         ret_id
     }
     fn pass_2(&mut self, passed_pos: (i32, i32)) {
+        self.pos = passed_pos;
         let mut padding_left = self.padding.0;
         let mut padding_top = self.padding.1;
 
-        let (auto_children, abs_children) = self.get_children_by_pos();
+        let (auto_children, mut abs_children, sticky_children) = self.get_children_by_pos();
+        abs_children.extend(sticky_children);
 
         let auto_children_len = auto_children.len();
+
+        //Special Handling of abs children
+        for child in abs_children.iter() {
+            let mut child = child.borrow_mut();
+            let position = child.get_position();
+            match position {
+                Position::Auto => {
+                    panic!("Auto positioned children should not reach here")
+                }
+                Position::Abs(x, y) => {
+                    child.pass_2((self.pos.0 + x, self.pos.1 + y));
+                }
+                Position::Sticky(x, y) => {
+                    child.pass_2((self.pos.0 + x, self.pos.1 + y));
+                }
+            }
+        }
+
+        if auto_children_len == 0 {
+            return;
+        }
+
         let mut cross_paddings = Vec::from(
             (0..auto_children_len)
                 .map(|_| self.padding.1)
                 .collect::<Vec<i32>>(),
         );
-
-        self.pos = passed_pos;
 
         let mut comparisons = [self.main_align, self.cross_align];
 
@@ -455,32 +462,18 @@ impl Base for Layout {
                 }
             }
         }
-
-        //Special Handling of abs children
-        for child in abs_children.iter() {
-            let mut child = child.borrow_mut();
-            let position = child.get_position();
-            match position {
-                Position::Auto => {
-                    panic!("Auto positioned children should not reach here")
-                }
-                Position::GlobalAbsolute(x, y) => {
-                    child.pass_2((x, y));
-                }
-                Position::LocalAbsolute(x, y) => {
-                    let self_pos = self.get_draw_pos();
-                    let self_x = self_pos.0;
-                    let self_y = self_pos.1;
-                    child.pass_2((self_x + x, self_y + y));
-                }
-            }
-        }
     }
 
-    fn pass_overflow(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), scroll_map: &mut HashMap<String, i32>,y_offset: i32) {
+    fn pass_overflow(
+        &mut self,
+        parent_draw_dim: (i32, i32),
+        parent_pos: (i32, i32),
+        scroll_map: &mut HashMap<String, i32>,
+        y_offset: i32,
+    ) {
         let draw_pos = self.get_draw_pos();
         let draw_dim = self.get_draw_dim();
-        
+
         let content_x = draw_pos.0;
         let content_y = draw_pos.1;
         let content_w = draw_dim.0;
@@ -500,18 +493,59 @@ impl Base for Layout {
         let scroll_map_entry = scroll_map.entry(self_id.clone()).or_insert(0);
         *scroll_map_entry = (*scroll_map_entry).min(max_scroll).max(0);
         let scroll_top = *scroll_map_entry;
-        let (start_y,visible_height) = get_drawable_y_and_h(container_y, container_h, start_y, content_h);
+        let (start_y, visible_height) =
+            get_drawable_y_and_h(container_y, container_h, start_y, content_h);
 
         self.draw_dim.1 = visible_height;
         self.pos.1 = start_y;
-        
 
-        for child in self.get_children().iter() {
+        for child in self.children.iter() {
             let mut child = child.borrow_mut();
-            child.pass_overflow(self.get_draw_dim(), self.get_draw_pos(), scroll_map, scroll_top+y_offset);
-        } 
+            match child.get_position() {
+                Position::Auto => {
+                    child.pass_overflow(
+                        self.get_draw_dim(),
+                        self.get_draw_pos(),
+                        scroll_map,
+                        y_offset + scroll_top,
+                    );
+                }
+                Position::Sticky(_, _) => {
+                    child.pass_overflow(
+                        self.get_draw_dim(),
+                        self.get_draw_pos(),
+                        scroll_map,
+                        scroll_top,
+                    );
+                }
+                Position::Abs(_, _) => {
+                    child.pass_overflow(
+                        self.get_draw_dim(),
+                        self.get_draw_pos(),
+                        scroll_map,
+                        y_offset + scroll_top,
+                    );
+                }
+            }
+        }
+
+        // let (auto_children, abs_children, sticky_children) = self.get_children_by_pos();
+        // let mut concerned_children = auto_children;
+        // concerned_children.extend(abs_children);
+        // for child in concerned_children.iter() {
+        //     let mut child = child.borrow_mut();
+        //     child.pass_overflow(
+        //         self.get_draw_dim(),
+        //         self.get_draw_pos(),
+        //         scroll_map,
+        //         scroll_top + y_offset,
+        //     );
+        // }
+        // for child in sticky_children.iter() {
+        //     let
+        // }
     }
-    
+
     fn get_flex(&self) -> f32 {
         self.flex
     }
@@ -542,8 +576,7 @@ impl Base for Layout {
         }
         tabbed_print("</layout>", depth);
     }
-    
-    
+
     fn get_id(&self) -> String {
         match &self.dbg_name {
             ID::Auto(name) => name.clone(),

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, ffi::CString, rc::Rc};
 
-use raylib::color::Color;
+use raylib::{color::Color, prelude::RaylibDraw};
 
 use crate::ui::{common::{Alignment, Base, Length, MouseEvent, tabbed_print}, layout::{self, Layout, LayoutProps}, raw_text::RawText};
 
@@ -168,7 +168,7 @@ impl Base for TextLayout{
         &self,
         draw_handle: &mut raylib::prelude::RaylibDrawHandle,
     ) -> Vec<super::common::AbsoluteDraw> {
-        return self.layout.draw(draw_handle);
+        self.layout.draw(draw_handle)
     }
 
     fn get_mouse_event_handlers(&self, mouse_event: super::common::MouseEvent) -> Vec<String> {

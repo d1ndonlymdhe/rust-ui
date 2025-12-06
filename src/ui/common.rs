@@ -65,18 +65,12 @@ pub fn get_drawable_y_and_h(
 #[derive(Debug, Clone)]
 pub struct AbsoluteDraw {
     pub component_id: String,
-    pub container_y: i32,
-    pub container_height: i32,
-    pub y_offset: i32,
 }
 
 impl AbsoluteDraw {
-    pub fn new(component_id: &str, container_y: i32, container_height: i32, y_offset: i32) -> Self {
+    pub fn new(component_id: &str) -> Self {
         return AbsoluteDraw {
             component_id: component_id.to_string(),
-            container_y,
-            container_height,
-            y_offset,
         };
     }
 }
@@ -178,14 +172,13 @@ pub fn get_draw_dim(
     direction: &Direction,
 ) -> (i32, i32) {
     let (width, height) = dim;
-
     let draw_width = match width {
         Length::FILL => parent_dim.0,
         Length::FIT => {
             let iter = children.iter().map(|child| child.borrow().get_draw_dim().0);
             match direction {
                 Direction::Row => iter.sum(),
-                Direction::Column => iter.max().unwrap(),
+                Direction::Column => iter.max().unwrap_or(0),
             }
         }
         Length::FIXED(l) => l,
@@ -197,7 +190,8 @@ pub fn get_draw_dim(
         Length::FIT => {
             let iter = children.iter().map(|child| child.borrow().get_draw_dim().1);
             match direction {
-                Direction::Row => iter.max().unwrap(),
+
+                Direction::Row => iter.max().unwrap_or(0),
                 Direction::Column => iter.sum(),
             }
         }
@@ -210,7 +204,6 @@ pub fn get_draw_dim(
 
 pub fn tabbed_print(text: &str, depth: usize) {
     let indent = "  ".repeat(depth);
-    println!("{}{}", indent, text);
 }
 
 pub fn generate_id() -> String {
