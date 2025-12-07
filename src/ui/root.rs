@@ -121,13 +121,13 @@ impl Root {
     pub fn pass_1(&mut self) {
         let mut mut_child = self.child.borrow_mut();
         mut_child.set_raw_dim(self.draw_dim);
-        mut_child.pass_1(self.draw_dim, 0);
+        mut_child.measure_dimensions(self.draw_dim, 0);
     }
     pub fn pass_2(&mut self) {
-        self.child.borrow_mut().pass_2(self.pos);
+        self.child.borrow_mut().measure_positions(self.pos);
     }
     pub fn pass_overflow(&mut self){
-        self.child.borrow_mut().pass_overflow((self.draw_dim), self.pos, &mut self.scroll_map, 0);
+        self.child.borrow_mut().measure_overflows((self.draw_dim), self.pos, &mut self.scroll_map, 0);
     }
     pub fn debug_dims(&self, depth: usize) {
         tabbed_print(

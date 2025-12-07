@@ -32,7 +32,10 @@ impl Base for RawText {
         );
         vec![]
     }
-    fn pass_overflow(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), _scroll_map: &mut HashMap<String, i32>,y_offset: i32) {
+    fn get_paddings(&self) -> (i32,i32,i32,i32) {
+        self.padding
+    }
+    fn measure_overflows(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), _scroll_map: &mut HashMap<String, i32>,y_offset: i32) {
         let (start_y,visible_height) = get_drawable_y_and_h(parent_pos.1, parent_draw_dim.1, self.pos.1 - y_offset, self.font_size);
         self.set_raw_dim((self.get_draw_dim().0,visible_height));
         self.set_pos((self.get_draw_pos().0,start_y));
@@ -51,11 +54,13 @@ impl Base for RawText {
             width = raylib::ffi::MeasureText(c_text.as_ptr(), self.font_size);
         }
         (
-            width + self.padding.0 + self.padding.2,
-            self.font_size + self.padding.1 + self.padding.3,
+            width
+            + self.padding.0 + self.padding.2,
+            self.font_size 
+            + self.padding.1 + self.padding.3,
         )
     }
-    fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
+    fn measure_dimensions(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
         self.set_raw_dim(parent_draw_dim);
         let ret_id = id + 1;
         if let ID::Auto(_) = &self.dbg_name {
@@ -63,7 +68,7 @@ impl Base for RawText {
         }
         ret_id
     }
-    fn pass_2(&mut self, parent_pos: (i32, i32)) {
+    fn measure_positions(&mut self, parent_pos: (i32, i32)) {
         self.pos = (parent_pos.0, parent_pos.1);
     }
     fn debug_dims(&self, depth: usize) {

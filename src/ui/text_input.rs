@@ -14,13 +14,15 @@ use crate::ui::{
     raw_text::RawText,
 };
 
+use colored::Colorize;
+
 pub struct TextInputProps {
     pub layout: LayoutProps,
-    pub content: Rc<RefCell<String>>,
+    pub content: String,
     pub font_size: i32,
     pub wrap: bool,
     pub text_color: Color,
-    pub def_on_key: Rc<RefCell<dyn FnMut(KeyEvent) -> bool>>,
+    // pub def_on_key: Rc<RefCell<dyn FnMut(KeyEvent) -> bool>>,
 }
 
 impl TextInputProps {
@@ -36,42 +38,17 @@ impl TextInputProps {
             .overflow_x(false)
             .overflow_y(true);
         
-        let text_content = Rc::new(RefCell::new(String::new()));
-        let closure_text_content = text_content.clone();
-        let def_on_key = Rc::new(RefCell::new(move |key_event: KeyEvent| {
-            if let Some(key) = key_event.key {
-                match key {
-                    KeyboardKey::KEY_BACKSPACE => {
-                        let mut content = closure_text_content.borrow_mut();
-                        content.pop();
-                    }
-                    _ => {
-                        if let Some(c) = keyboard_key_to_char(key) {
-                            let mut c = c;
-                            let mut content = closure_text_content.borrow_mut();
-                            if key_event.shift_down {
-                                c = shift_character(c);
-                            }
-                            content.push(c);
-                        }
-                    }
-                }
-            }
-            true
-        }));
-
         Self {
             layout,
-            content: text_content,
+            content: "".to_string(),
             font_size: 24,
             wrap: true,
             text_color: Color::BLACK,
-            def_on_key,
         }
     }
 
-    pub fn content(self, content: &str) -> Self {
-        self.content.replace(content.into());
+    pub fn content(mut self, content: &str) -> Self {
+        self.content = content.to_string();
         self
     }
 
@@ -140,7 +117,8 @@ impl TextInputProps {
     }
 
     pub fn on_key(mut self, f: Box<dyn FnMut(KeyEvent) -> bool>) -> Self {
-        self.def_on_key = Rc::new(RefCell::new(f));
+        let layout = self.layout.on_key(f);
+        self.layout = layout;
         self
     }
 
@@ -165,31 +143,25 @@ impl TextInputProps {
         let layout = self.layout;
         Rc::new(RefCell::new(TextInput {
             layout: layout.get_layout(),
-            content: self.content,
+            content: self.content.clone(),
             font_size: self.font_size,
             wrap: self.wrap,
             text_color: self.text_color,
-            def_on_key: self.def_on_key,
         }))
     }
 }
 
 pub struct TextInput {
     layout: Layout,
-    content: Rc<RefCell<String>>,
+    content: String,
     font_size: i32,
     wrap: bool,
     text_color: Color,
-    def_on_key: Rc<RefCell<dyn FnMut(KeyEvent) -> bool>>,
 }
 
 impl TextInput {
     pub fn get_builder() -> TextInputProps {
         TextInputProps::new()
-    }
-
-    pub fn get_content(&self) -> String {
-        self.content.borrow().clone()
     }
 }
 
@@ -236,7 +208,6 @@ impl Base for TextInput {
         &self,
         draw_handle: &mut RaylibDrawHandle,
     ) -> Vec<AbsoluteDraw> {
-        let layout = &self.layout;
         return self.layout.draw(draw_handle);
     }
 
@@ -264,10 +235,18 @@ impl Base for TextInput {
     fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>> {
         self.layout.get_on_click()
     }
+    fn get_paddings(&self) -> (i32,i32,i32,i32) {
+        self.layout.get_paddings()
+    }
 
     fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
         let mut user_fun = self.layout.on_click.borrow_mut();
         user_fun(mouse_event)
+    }
+
+    fn execute_on_key(&self, key_event: KeyEvent) -> bool {
+        let mut key_fn = self.layout.on_key.borrow_mut();
+        key_fn(key_event)
     }
 
     fn get_key_event_handlers(&self, _key_event: KeyEvent) -> Vec<String> {
@@ -275,7 +254,7 @@ impl Base for TextInput {
     }
 
     fn get_on_key(&self) -> Rc<RefCell<dyn FnMut(KeyEvent) -> bool>> {
-        self.def_on_key.clone()
+        self.layout.on_key.clone()
     }
 
     fn is_focusable(&self) -> bool {
@@ -285,13 +264,13 @@ impl Base for TextInput {
     fn set_raw_dim(&mut self, parent_draw_dim: (i32, i32)) {
         let layout = &mut self.layout;
         layout.children = vec![RawText::new(
-            &self.content.borrow(),
+            &self.content,
             self.font_size,
             layout.padding,
             self.text_color,
         )];
         let content_width = unsafe {
-            let c_text = CString::new(self.content.borrow().as_str()).unwrap();
+            let c_text = CString::new(self.content.as_str()).unwrap();
             raylib::ffi::MeasureText(c_text.as_ptr(), self.font_size)
                 + layout.padding.0
                 + layout.padding.2
@@ -302,7 +281,7 @@ impl Base for TextInput {
         if self.wrap {
             let max_width = draw_width - layout.padding.0 - layout.padding.2;
             if content_width > max_width {
-                let text_rows = get_text_rows(&self.content.borrow(), max_width, self.font_size);
+                let text_rows = get_text_rows(&self.content, max_width, self.font_size);
                 layout.children = text_rows
                     .iter()
                     .map(|row| {
@@ -337,16 +316,16 @@ impl Base for TextInput {
         self.layout.get_draw_dim()
     }
 
-    fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
-        self.layout.pass_1(parent_draw_dim, id)
+    fn measure_dimensions(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
+        self.layout.measure_dimensions(parent_draw_dim, id)
     }
 
-    fn pass_2(&mut self, parent_pos: (i32, i32)) {
-        self.layout.pass_2(parent_pos);
+    fn measure_positions(&mut self, parent_pos: (i32, i32)) {
+        self.layout.measure_positions(parent_pos);
     }
 
-    fn pass_overflow(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), scroll_map: &mut HashMap<String, i32>, y_offset: i32) {
-        self.layout.pass_overflow(parent_draw_dim, parent_pos, scroll_map, y_offset);
+    fn measure_overflows(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), scroll_map: &mut HashMap<String, i32>, y_offset: i32) {
+        self.layout.measure_overflows(parent_draw_dim, parent_pos, scroll_map, y_offset);
     }
 
     fn get_overflow(&self) -> (bool, bool) {
@@ -361,11 +340,13 @@ impl Base for TextInput {
         let layout = &self.layout;
         tabbed_print(
             &format!(
-                "<textinput width={} height={} x={} y={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} name='{}' flex={}>",
+                "<textinput width={} height={} x={} y={} bg_color={} text_color={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} name='{}' flex={}>",
                 layout.draw_dim.0,
                 layout.draw_dim.1,
                 layout.pos.0,
                 layout.pos.1,
+                "███████".truecolor(layout.bg_color.r, layout.bg_color.g, layout.bg_color.b).bold(),
+                "███████".truecolor(self.text_color.r, self.text_color.g, self.text_color.b).bold(),
                 layout.padding.0,
                 layout.padding.1,
                 layout.padding.2,

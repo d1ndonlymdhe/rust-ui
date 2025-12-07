@@ -4,7 +4,8 @@ use raylib::{color::Color, prelude::RaylibDraw};
 
 use crate::ui::{common::{Alignment, Base, Length, MouseEvent, tabbed_print}, layout::{self, Layout, LayoutProps}, raw_text::RawText};
 
-
+use colored::Colorize;
+#[derive(Clone)]
 pub struct TextLayoutProps {
     pub layout: LayoutProps,
     pub font_size: i32,
@@ -17,7 +18,7 @@ impl TextLayoutProps {
     pub fn new() -> Self {
         let layout = Layout::get_col_builder()
         .dim((Length::FIT,Length::FIT))
-        .bg_color(Color::WHITE)
+        .bg_color(Color{r:0,g:0,b:0,a:0})
         .main_align(Alignment::Start)
         .cross_align(Alignment::Start)
         .padding((0,0,0,0))
@@ -110,6 +111,7 @@ impl TextLayoutProps {
             text_color: self.text_color
         }))
     }
+    
 }
 
 
@@ -200,11 +202,19 @@ impl Base for TextLayout{
         Rc::new(RefCell::new(|_key_event| true))
     }
 
+    fn get_paddings(&self) -> (i32,i32,i32,i32) {
+        self.layout.get_paddings()
+    }
+
     fn set_raw_dim(&mut self, parent_draw_dim: (i32, i32)) {
+        if self.layout.get_id() == "OVERLAY_HEADER_CONT"{
+            println!("HI TEXT")
+        }
         let layout = &mut self.layout;
         layout.children = vec![RawText::new(
             &self.content,
             self.font_size,
+            // (0,0,0,0),
             layout.padding,
             self.text_color,
         )];
@@ -224,7 +234,10 @@ impl Base for TextLayout{
                 layout.children = text_rows
                     .iter()
                     .map(|row| {
-                        RawText::new(row, self.font_size, layout.padding, self.text_color)
+                        RawText::new(row, self.font_size, 
+                            // (0,0,0,0)
+                            layout.padding
+                            , self.text_color)
                             as Rc<RefCell<dyn Base>>
                     })
                     .collect();
@@ -239,6 +252,15 @@ impl Base for TextLayout{
                 .max()
                 .unwrap()
         }
+        if let Length::FIT_PER(p) = layout.dim.0 {
+            draw_width = layout
+                .children
+                .iter()
+                .map(|child| child.borrow().get_draw_dim().0)
+                .max()
+                .unwrap();
+            draw_width = (draw_width * p)/100
+        }
         if layout.dim.1 == Length::FIT {
             draw_height = layout
                 .children
@@ -246,6 +268,15 @@ impl Base for TextLayout{
                 .map(|child| child.borrow().get_draw_dim().1)
                 .sum::<i32>()
                 + layout.gap * (layout.children.len() as i32 - 1);
+        }
+        if let Length::FIT_PER(p) = layout.dim.1 {
+            draw_height = layout
+                .children
+                .iter()
+                .map(|child| child.borrow().get_draw_dim().1)
+                .max()
+                .unwrap();
+            draw_height = (draw_height * p)/100
         }
 
         layout.draw_dim = (
@@ -262,16 +293,16 @@ impl Base for TextLayout{
         self.layout.get_draw_pos()
     }
 
-    fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
-        self.layout.pass_1(parent_draw_dim, id)
+    fn measure_dimensions(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
+        self.layout.measure_dimensions(parent_draw_dim, id)
     }
 
-    fn pass_2(&mut self, parent_pos: (i32, i32)) {
-        self.layout.pass_2(parent_pos);
+    fn measure_positions(&mut self, parent_pos: (i32, i32)) {
+        self.layout.measure_positions(parent_pos);
     }
 
-    fn pass_overflow(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), scroll_map: &mut std::collections::HashMap<String, i32>,y_offset: i32) {
-        self.layout.pass_overflow(parent_draw_dim, parent_pos, scroll_map, y_offset);
+    fn measure_overflows(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), scroll_map: &mut std::collections::HashMap<String, i32>,y_offset: i32) {
+        self.layout.measure_overflows(parent_draw_dim, parent_pos, scroll_map, y_offset);
     }
 
     fn get_overflow(&self) -> (bool, bool) {
@@ -286,11 +317,13 @@ impl Base for TextLayout{
         let layout = &self.layout;
         tabbed_print(
             &format!(
-                "<layouttext width={} height={} x={} y={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} name='{}' flex={}>",
+                "<layouttext width={} height={} x={} y={} bg_color={} text_color={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} name='{}' flex={}>",
                 layout.draw_dim.0,
                 layout.draw_dim.1,
                 layout.pos.0,
                 layout.pos.1,
+                "███████".truecolor(self.layout.bg_color.r, self.layout.bg_color.g, self.layout.bg_color.b).bold(),
+                "███████".truecolor(self.text_color.r, self.text_color.g, self.text_color.b).bold(),
                 layout.padding.0,
                 layout.padding.1,
                 layout.padding.2,

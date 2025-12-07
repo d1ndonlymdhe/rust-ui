@@ -85,11 +85,19 @@ fn main() {
             shift_down,
             ctrl_down,
         };
+
         {
             let binding = root.clone();
             let mut root = binding.borrow_mut();
+
             let a = root.get_mouse_event_handlers(mouse_event);
-            let b = root.handle_key_event(key_event);
+
+            let b = if key_event.ctrl_down || key_event.shift_down || key_event.key.is_some() {
+                root.handle_key_event(key_event)
+            } else {
+                false
+            };
+
             let c = root.get_scroll_event_handler(scroll_event);
             if a || b || c {
                 should_rebuild_ui = true;
@@ -104,7 +112,9 @@ fn main() {
                 mut_root.pass_2();
                 mut_root.pass_overflow();
             }
-            root.borrow_mut().draw(&mut d);
+            {
+                root.borrow_mut().draw(&mut d);
+            }
             should_rebuild_ui = false;
         }
     }
@@ -116,6 +126,7 @@ struct ChatUser {
     name: String,
 }
 
+#[derive(Clone)]
 struct ChatMessage {
     content: String,
     sender_id: String,
@@ -128,7 +139,7 @@ struct ChatState {
     my_id: String,
     current_user_id: String,
     draft_message: String,
-    show_delete_user_popup: bool,
+    show_delete_user_popup: Option<String>,
 }
 
 impl ChatState {
@@ -139,7 +150,7 @@ impl ChatState {
             current_user_id: String::new(),
             my_id: "0".to_string(),
             draft_message: String::from("Hi!"),
-            show_delete_user_popup: true,
+            show_delete_user_popup: None,
         }
     }
 
@@ -195,6 +206,29 @@ impl ChatState {
         self.add_message("Sounds good! Let's do it.", "2", "0");
     }
 
+    fn delete_user(&mut self, id: &str) {
+        self.users = self
+            .users
+            .iter()
+            .filter(|user| user.id != id)
+            .map(|user| user.clone())
+            .collect::<Vec<_>>();
+        self.messages = self
+            .messages
+            .iter()
+            .filter(|msg| msg.receiver_id == id || msg.sender_id == id)
+            .map(|msg| msg.clone())
+            .collect::<Vec<_>>();
+    }
+    fn get_user(&self, id: &str) -> Option<ChatUser> {
+        for user in self.users.iter() {
+            if user.id == id {
+                return Some(user.clone());
+            }
+        }
+        return None;
+    }
+
     fn get_current_messages(&self) -> Vec<&ChatMessage> {
         self.messages
             .iter()
@@ -204,8 +238,11 @@ impl ChatState {
             .collect()
     }
 
-    fn toggle_delete_user_popup(&mut self) {
-        self.show_delete_user_popup = !self.show_delete_user_popup;
+    fn set_user_to_delete(&mut self, id: &str) {
+        self.show_delete_user_popup = Some(id.to_string());
+    }
+    fn clear_user_to_delete(&mut self) {
+        self.show_delete_user_popup = None;
     }
 }
 
@@ -251,22 +288,57 @@ fn users_component() -> Vec<Component> {
         .map(|user| {
             let user = user.clone();
             let user_id = user.id.clone();
-            TextLayout::get_builder()
-                .content(&user.name)
-                .font_size(20)
-                .bg_color(if current_user_id == user.id {
-                    Color::LIGHTGREEN
-                } else {
-                    Color::LIGHTGRAY
-                })
+
+            Layout::get_row_builder()
                 .dim((Length::FILL, Length::FIXED(40)))
-                .padding((10, 10, 10, 10))
-                .on_click({
-                    Box::new(move |_mouse_event: MouseEvent| {
-                        CHAT_STATE.lock().unwrap().current_user_id = user_id.clone();
-                        true
-                    })
-                })
+                .gap(10)
+                .on_click(Box::new(move |_mouse_event: MouseEvent| {
+                    CHAT_STATE.lock().unwrap().current_user_id = user_id.clone();
+                    true
+                }))
+                .children(vec![
+                    TextLayout::get_builder()
+                        .content(&user.name)
+                        .dim((Length::FILL, Length::FILL))
+                        .bg_color(if current_user_id == user.id {
+                            Color::LIGHTGREEN
+                        } else {
+                            Color::LIGHTGRAY
+                        })
+                        .padding((10, 0, 10, 0))
+                        .cross_align(Alignment::Start)
+                        .main_align(Alignment::Center)
+                        .flex(7.0)
+                        .build(),
+                    Layout::get_col_builder()
+                        .children(vec![
+                            TextLayout::get_builder()
+                                .cross_align(Alignment::Center)
+                                .main_align(Alignment::Center)
+                                .content("\\/")
+                                .font_size(10)
+                                .build(),
+                            TextLayout::get_builder()
+                                .cross_align(Alignment::Center)
+                                .main_align(Alignment::Center)
+                                .content("/\\")
+                                .font_size(10)
+                                .build(),
+                        ])
+                        .cross_align(Alignment::Center)
+                        .main_align(Alignment::Center)
+                        .on_click({
+                            Box::new(move |_| {
+                                let mut state = CHAT_STATE.lock().unwrap();
+                                state.set_user_to_delete(&user.id);
+                                false
+                            })
+                        })
+                        .flex(3.0)
+                        .dim((Length::FILL, Length::FILL))
+                        .bg_color(Color::RED)
+                        .build(),
+                ])
                 .build() as Component
         })
         .collect::<Vec<_>>()
@@ -315,7 +387,20 @@ fn input_box_component() -> Component {
         .content(&draft_message)
         .dbg_name("TEXT_INPUT")
         .font_size(20)
+        .padding((10, 0, 10, 0))
+        .main_align(Alignment::Center)
         .on_key(Box::new(move |key_event| {
+            if key_event.key.is_some_and(|v| v == KeyboardKey::KEY_ENTER) {
+                let mut chat_state = CHAT_STATE.lock().unwrap();
+                let content = chat_state.draft_message.clone();
+                if content.trim().is_empty() {
+                    return true;
+                }
+                let current_user_id = chat_state.current_user_id.clone();
+                let my_id = chat_state.my_id.clone();
+                chat_state.add_message(&content, &my_id, &current_user_id);
+                chat_state.draft_message.clear();
+            }
             let mut chat_state = CHAT_STATE.lock().unwrap();
             def_key_handler(key_event, &mut chat_state.draft_message);
             true
@@ -388,16 +473,11 @@ fn left_sidebar_component() -> Component {
     let header = users_header();
     let mut children = vec![header];
     let users = users_component();
-    let btn = Layout::get_row_builder()
-        .children(vec![TextLayout::get_builder().content("Delete").build()])
-        .build();
     children.extend(users);
-    children.push(btn);
     Layout::get_col_builder()
         .children(children)
         .dim((Length::FILL, Length::FILL))
         .padding((10, 5, 10, 5))
-        .bg_color(Color::RED)
         .dbg_name("LEFT_SIDEBAR")
         .gap(5)
         .flex(1f32)
@@ -405,17 +485,16 @@ fn left_sidebar_component() -> Component {
 }
 
 fn chat_area_component() -> Component {
-    let mut children = vec![delete_user_popup()];
-    let messages = messages_component();
-    children.extend(messages);
-    // messages.push(delete_user_popup());
+    let children = messages_component();
     let messages = Layout::get_col_builder()
-        .dim((Length::FILL, Length::FILL))
-        .bg_color(Color::BLUE)
         .dbg_name("CHAT_AREA")
-        .dim((Length::FILL, Length::PERCENT(100)))
-        // .main_align(Alignment::End)
-        .children(children)
+        .padding((10, 10, 10, 10))
+        .children(vec![
+            Layout::get_col_builder()
+                .bg_color(Color::BEIGE)
+                .children(children)
+                .build(),
+        ])
         .flex(19f32)
         .build();
     let input_row = input_row_component();
@@ -424,62 +503,90 @@ fn chat_area_component() -> Component {
         .dim((Length::FILL, Length::FILL))
         .main_align(Alignment::Center)
         .overflow_y(false)
-        .padding((10, 50, 10, 10))
-        .bg_color(Color {
-            r: 200,
-            g: 200,
-            b: 200,
-            a: 255,
-        })
         .flex(3f32)
         .children(vec![messages, input_row])
         .build()
 }
 
 fn delete_user_popup() -> Component {
-    Layout::get_col_builder()
-        .set_position(ui::common::Position::Sticky(0, 200))
-        .bg_color(Color::BLACK)
-        .dim((Length::FIT, Length::FIXED(100)))
-        .dbg_name("DLT_POPUP")
-        // .flex(0.1)
+    println!("Rendering popup");
+    let user_to_delete = {
+        let mut state = CHAT_STATE.lock().unwrap();
+        let del_user_id = &state.show_delete_user_popup;
+        if let Some(del_id) = del_user_id {
+            let u = state.get_user(&del_id);
+            if u.is_none() {
+                state.clear_user_to_delete();
+            }
+            u
+        } else {
+            state.clear_user_to_delete();
+            None
+        }
+    };
+
+    if user_to_delete.is_none() {
+        return Layout::get_row_builder().build();
+    }
+
+    let user_to_delete = user_to_delete.unwrap();
+
+    let header = TextLayout::get_builder()
+        .content(&format!(
+            "Are you sure you want to delete your conversation with {} ?",
+            user_to_delete.name
+        ))
+        .dbg_name("OVERLAY_HEADER")
+        .dim((Length::FIT, Length::FIT))
+        .build();
+
+    let button_builder = TextLayout::get_builder()
+        .cross_align(Alignment::Center)
+        .main_align(Alignment::Center);
+        // .padding((10, 10, 10, 10));
+
+    let buttons = Layout::get_row_builder()
+        .gap(20)
         .children(vec![
-            TextLayout::get_builder()
-                .content("POPUP?")
-                .font_size(20)
-                .bg_color(Color::WHITE)
-                .dim((Length::FIT, Length::FIT))
-                .padding((10, 10, 10, 10))
+            button_builder
+                .clone()
+                .content("YES")
+                .bg_color(Color::GREEN)
                 .build(),
-            TextLayout::get_builder()
-                .content("POPUP?")
-                .font_size(20)
-                .bg_color(Color::WHITE)
-                .dim((Length::FIT, Length::FIT))
-                .padding((10, 10, 10, 10))
+            button_builder
+                .clone()
+                .content("NO")
+                .bg_color(Color::RED)
                 .build(),
-                TextLayout::get_builder()
-                .content("POPUP?")
-                .font_size(20)
-                .bg_color(Color::WHITE)
-                .dim((Length::FIT, Length::FIT))
-                .padding((10, 10, 10, 10))
-                .build(),
-                TextLayout::get_builder()
-                .content("POPUP?")
-                .font_size(20)
-                .bg_color(Color::WHITE)
-                .dim((Length::FIT, Length::FIT))
-                .padding((10, 10, 10, 10))
-                .build(),
-                TextLayout::get_builder()
-                .content("POPUP?")
-                .font_size(20)
-                .bg_color(Color::WHITE)
-                .dim((Length::FIT, Length::FIT))
-                .padding((10, 10, 10, 10))
-                .build()
         ])
+        .dim((Length::FIT, Length::FIT))
+        .build();
+
+    let container = Layout::get_col_builder()
+        .dim((Length::FIT_PER(105), Length::FIT_PER(120)))
+        // .padding((0, 12, 0, 10))
+        .gap(10)
+        .children(vec![header, buttons])
+        .bg_color(Color::ROYALBLUE)
+        .main_align(Alignment::Start)
+        .cross_align(Alignment::Center)
+        .on_click(Box::new(|_| false))
+        .dbg_name("OVERLAY_HEADER_CONT")
+        .build();
+
+    Layout::get_col_builder()
+        .set_position(ui::common::Position::Sticky(0, 0))
+        .dim((Length::FILL, Length::FILL))
+        .dbg_name("OVERLAY")
+        .padding((50, 0, 50, 0))
+        .cross_align(Alignment::Center)
+        .main_align(Alignment::Center)
+        .on_click(Box::new(|_| {
+            let mut state = CHAT_STATE.lock().unwrap();
+            state.clear_user_to_delete();
+            false
+        }))
+        .children(vec![container])
         .build()
 }
 
@@ -488,17 +595,23 @@ fn chat_layout() -> Component {
     let chat_area = chat_area_component();
 
     let mut children = vec![left_sidebar, chat_area];
-    let show_popup;
-    {
+
+    let show_popup = {
         let chat_state = CHAT_STATE.lock().unwrap();
-        show_popup = chat_state.show_delete_user_popup;
+        if chat_state.show_delete_user_popup.is_some() {
+            true
+        } else {
+            false
+        }
+    };
+    if show_popup {
+        children.push(delete_user_popup());
     }
-    // if show_popup {
-    //     children.push(delete_user_popup());
-    // }
 
     Layout::get_row_builder()
         .dim((Length::FILL, Length::FILL))
         .children(children)
+        .dbg_name("ROOT_LAYOUT")
+        .bg_color(Color::BEIGE)
         .build()
 }

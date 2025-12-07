@@ -1,13 +1,13 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc, vec};
+use std::{cell::{Ref, RefCell}, collections::HashMap, rc::Rc, vec};
 
+use colored::Colorize;
 use raylib::{
     color::Color,
     prelude::{RaylibDraw, RaylibDrawHandle},
 };
 
 use crate::ui::common::{
-    AbsoluteDraw, Alignment, Base, Component, Direction, ID, Length, MouseEvent, Position,
-    generate_id, get_drawable_y_and_h, tabbed_print,
+    AbsoluteDraw, Alignment, Base, Component, Direction, ID, KeyEvent, Length, MouseEvent, Position, generate_id, get_drawable_y_and_h, tabbed_print
 };
 
 pub struct Layout {
@@ -25,6 +25,7 @@ pub struct Layout {
     pub dbg_name: ID,
     pub flex: f32,
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
+    pub on_key: Rc<RefCell<dyn FnMut(KeyEvent)-> bool>>,
     pub children_func: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
     pub overflow: (bool, bool),
     pub scroll_offset: i32,
@@ -35,8 +36,8 @@ pub struct LayoutProps {
     layout: Layout,
 }
 
-impl LayoutProps {
-    pub fn clone(&self) -> Self {
+impl Clone for LayoutProps{
+ fn clone(&self) -> Self {
         Self {
             layout: Layout {
                 children: self.layout.children.clone(),
@@ -56,10 +57,12 @@ impl LayoutProps {
                 overflow: self.layout.overflow,
                 scroll_offset: self.layout.scroll_offset,
                 position: self.layout.position,
+                on_key: self.layout.on_key.clone(),
             },
         }
     }
 }
+
 
 impl LayoutProps {
     pub fn new() -> Self {
@@ -69,7 +72,7 @@ impl LayoutProps {
                 dim: (Length::FILL, Length::FILL),
                 draw_dim: (0, 0),
                 pos: (0, 0),
-                bg_color: Color::WHITE,
+                bg_color: Color{r:0,b:0,g:0,a:0},
                 direction: Direction::Row,
                 main_align: Alignment::Start,
                 cross_align: Alignment::Start,
@@ -78,6 +81,7 @@ impl LayoutProps {
                 dbg_name: ID::Auto(generate_id()),
                 flex: 1.0,
                 on_click: Rc::new(RefCell::new(|_mouse_event| true)),
+                on_key: Rc::new(RefCell::new(|_key_event| true)),
                 children_func: None,
                 scroll_offset: 0,
                 overflow: (false, true),
@@ -129,6 +133,10 @@ impl LayoutProps {
         self.layout.on_click = Rc::new(RefCell::new(f));
         self
     }
+    pub fn on_key(mut self,f: Box<dyn FnMut(KeyEvent) -> bool>) -> Self {
+        self.layout.on_key = Rc::new(RefCell::new(f));
+        self
+    }
     pub fn children_func(mut self, f: Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>) -> Self {
         self.layout.children_func = Some(f);
         self
@@ -165,29 +173,11 @@ impl LayoutProps {
             overflow: layout.overflow,
             scroll_offset: layout.scroll_offset,
             position: layout.position,
+            on_key: layout.on_key.clone(),
         }))
     }
     pub fn get_layout(self) -> Layout {
-        let layout = self.layout;
-        Layout {
-            children: layout.children.clone(),
-            dim: layout.dim,
-            draw_dim: layout.draw_dim,
-            pos: layout.pos,
-            bg_color: layout.bg_color,
-            direction: layout.direction,
-            padding: layout.padding,
-            main_align: layout.main_align,
-            cross_align: layout.cross_align,
-            gap: layout.gap,
-            dbg_name: layout.dbg_name.clone(),
-            flex: layout.flex,
-            on_click: layout.on_click.clone(),
-            children_func: layout.children_func.clone(),
-            overflow: layout.overflow,
-            scroll_offset: layout.scroll_offset,
-            position: layout.position,
-        }
+        self.clone().layout
     }
 }
 
@@ -229,6 +219,9 @@ impl Layout {
 }
 
 impl Base for Layout {
+    fn get_paddings(&self) -> (i32,i32,i32,i32) {
+        return self.padding;
+    }
     fn set_pos(&mut self, pos: (i32, i32)) {
         self.pos = pos;
     }
@@ -298,7 +291,12 @@ impl Base for Layout {
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
     }
-    fn pass_1(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
+    fn measure_dimensions(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
+
+        if self.get_id() == "OVERLAY_HEADER_CONT" {
+            println!("HI!")
+        }
+
         let (auto_children, mut abs_children, sticky_children) = self.get_children_by_pos();
         abs_children.extend(sticky_children);
         // let auto_children = self.get_children();
@@ -309,17 +307,18 @@ impl Base for Layout {
             .sum::<f32>();
         let mut ret_id = id;
         for child in auto_children.iter() {
-            let flex: f32 = child.borrow().get_flex();
+            let mut child = child.borrow_mut();
+            let flex: f32 = child.get_flex();
+            
             match self.direction {
                 Direction::Row => {
                     let allowed_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     let allowed_width = allowed_width - (self.gap * (auto_children_len - 1));
                     let child_width = f32::floor(flex * (allowed_width as f32 / total_flex)) as i32;
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
-                    child.borrow_mut().set_raw_dim((child_width, child_height));
+                    child.set_raw_dim((child_width, child_height));
                     ret_id = child
-                        .borrow_mut()
-                        .pass_1((child_width, child_height), ret_id + 1);
+                        .measure_dimensions((child_width, child_height), ret_id + 1);
                 }
                 Direction::Column => {
                     let allowed_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
@@ -327,25 +326,26 @@ impl Base for Layout {
                     let child_height =
                         f32::floor(flex * (allowed_height as f32 / total_flex)) as i32;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
-                    child.borrow_mut().set_raw_dim((child_width, child_height));
+                    child.set_raw_dim((child_width, child_height));
                     ret_id = child
-                        .borrow_mut()
-                        .pass_1((child_width, child_height), ret_id + 1);
+                        .measure_dimensions((child_width, child_height), ret_id + 1);
                 }
             }
         }
 
-        self.set_raw_dim(parent_draw_dim);
         for child in abs_children.iter() {
-            ret_id = child.borrow_mut().pass_1(self.draw_dim, ret_id + 1)
+            let mut child = child.borrow_mut();
+            child.set_raw_dim(self.draw_dim);
+            ret_id = child.measure_dimensions(self.draw_dim, ret_id + 1)
         }
+        self.set_raw_dim(parent_draw_dim);
         ret_id = ret_id + 1;
         if let ID::Auto(_) = &self.dbg_name {
             self.dbg_name = ID::Auto(ret_id.to_string());
         }
         ret_id
     }
-    fn pass_2(&mut self, passed_pos: (i32, i32)) {
+    fn measure_positions(&mut self, passed_pos: (i32, i32)) {
         self.pos = passed_pos;
         let mut padding_left = self.padding.0;
         let mut padding_top = self.padding.1;
@@ -364,10 +364,10 @@ impl Base for Layout {
                     panic!("Auto positioned children should not reach here")
                 }
                 Position::Abs(x, y) => {
-                    child.pass_2((self.pos.0 + x, self.pos.1 + y));
+                    child.measure_positions((self.pos.0 + x, self.pos.1 + y));
                 }
                 Position::Sticky(x, y) => {
-                    child.pass_2((self.pos.0 + x, self.pos.1 + y));
+                    child.measure_positions((self.pos.0 + x, self.pos.1 + y));
                 }
             }
         }
@@ -447,7 +447,7 @@ impl Base for Layout {
 
         for (idx, child) in auto_children.iter().enumerate() {
             let mut child = child.borrow_mut();
-            child.pass_2(next_pos);
+            child.measure_positions(next_pos);
 
             let (child_width, child_height) = child.get_draw_dim();
             if idx < self.children.len() - 1 {
@@ -464,7 +464,7 @@ impl Base for Layout {
         }
     }
 
-    fn pass_overflow(
+    fn measure_overflows(
         &mut self,
         parent_draw_dim: (i32, i32),
         parent_pos: (i32, i32),
@@ -503,7 +503,7 @@ impl Base for Layout {
             let mut child = child.borrow_mut();
             match child.get_position() {
                 Position::Auto => {
-                    child.pass_overflow(
+                    child.measure_overflows(
                         self.get_draw_dim(),
                         self.get_draw_pos(),
                         scroll_map,
@@ -511,7 +511,7 @@ impl Base for Layout {
                     );
                 }
                 Position::Sticky(_, _) => {
-                    child.pass_overflow(
+                    child.measure_overflows(
                         self.get_draw_dim(),
                         self.get_draw_pos(),
                         scroll_map,
@@ -519,7 +519,7 @@ impl Base for Layout {
                     );
                 }
                 Position::Abs(_, _) => {
-                    child.pass_overflow(
+                    child.measure_overflows(
                         self.get_draw_dim(),
                         self.get_draw_pos(),
                         scroll_map,
@@ -528,22 +528,6 @@ impl Base for Layout {
                 }
             }
         }
-
-        // let (auto_children, abs_children, sticky_children) = self.get_children_by_pos();
-        // let mut concerned_children = auto_children;
-        // concerned_children.extend(abs_children);
-        // for child in concerned_children.iter() {
-        //     let mut child = child.borrow_mut();
-        //     child.pass_overflow(
-        //         self.get_draw_dim(),
-        //         self.get_draw_pos(),
-        //         scroll_map,
-        //         scroll_top + y_offset,
-        //     );
-        // }
-        // for child in sticky_children.iter() {
-        //     let
-        // }
     }
 
     fn get_flex(&self) -> f32 {
@@ -552,11 +536,12 @@ impl Base for Layout {
     fn debug_dims(&self, depth: usize) {
         tabbed_print(
             &format!(
-                "<layout width={} height={} x={} y={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} position={:?} name='{}' flex={}>",
+                "<layout width={} height={} x={} y={} bg_color={} padding=({},{},{},{}) gap={} dir={:?} main_align={:?} cross_align={:?} position={:?} name='{}' flex={}>",
                 self.draw_dim.0,
                 self.draw_dim.1,
                 self.pos.0,
                 self.pos.1,
+                "███████".truecolor(self.bg_color.r, self.bg_color.g, self.bg_color.b).bold(),
                 self.padding.0,
                 self.padding.1,
                 self.padding.2,
