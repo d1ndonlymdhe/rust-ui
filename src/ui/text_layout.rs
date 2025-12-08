@@ -207,22 +207,21 @@ impl Base for TextLayout{
     }
 
     fn set_raw_dim(&mut self, parent_draw_dim: (i32, i32)) {
-        if self.layout.get_id() == "OVERLAY_HEADER_CONT"{
-            println!("HI TEXT")
-        }
+        let layout_paddings = self.layout.padding;
+
         let layout = &mut self.layout;
         layout.children = vec![RawText::new(
             &self.content,
             self.font_size,
-            // (0,0,0,0),
-            layout.padding,
+            (0,0,0,0),
+            // layout.padding,
             self.text_color,
         )];
         let content_width = unsafe {
             let c_text = CString::new(self.content.as_str()).unwrap();
             raylib::ffi::MeasureText(c_text.as_ptr(), self.font_size)
-                + layout.padding.0
-                + layout.padding.2
+                // + layout.padding.0
+                // + layout.padding.2
         };
         let (mut draw_width, mut draw_height) =
             crate::ui::common::get_draw_dim(layout.dim, parent_draw_dim, &layout.children, &layout.direction);
@@ -235,8 +234,8 @@ impl Base for TextLayout{
                     .iter()
                     .map(|row| {
                         RawText::new(row, self.font_size, 
-                            // (0,0,0,0)
-                            layout.padding
+                            (0,0,0,0)
+                            // layout.padding
                             , self.text_color)
                             as Rc<RefCell<dyn Base>>
                     })
@@ -280,8 +279,8 @@ impl Base for TextLayout{
         }
 
         layout.draw_dim = (
-            draw_width,  // + self.padding.0 + self.padding.2
-            draw_height, // + self.padding.1 + self.padding.3
+            draw_width + layout_paddings.0 + layout_paddings.2,
+            draw_height + layout_paddings.1 + layout_paddings.3
         );
     }
 
@@ -294,7 +293,9 @@ impl Base for TextLayout{
     }
 
     fn measure_dimensions(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
-        self.layout.measure_dimensions(parent_draw_dim, id)
+        let ret_id = self.layout.measure_dimensions(parent_draw_dim, id);
+        self.set_raw_dim(parent_draw_dim);
+        ret_id
     }
 
     fn measure_positions(&mut self, parent_pos: (i32, i32)) {

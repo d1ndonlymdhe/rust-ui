@@ -346,6 +346,9 @@ impl Base for Layout {
         ret_id
     }
     fn measure_positions(&mut self, passed_pos: (i32, i32)) {
+
+
+
         self.pos = passed_pos;
         let mut padding_left = self.padding.0;
         let mut padding_top = self.padding.1;
@@ -444,7 +447,9 @@ impl Base for Layout {
             next_pos.0 += padding_left;
         }
         next_pos.1 += padding_top;
-
+        if self.get_id() == "ROOT_LAYOUT"{
+            println!("ROOT LAYOUT")
+        }
         for (idx, child) in auto_children.iter().enumerate() {
             let mut child = child.borrow_mut();
             child.measure_positions(next_pos);
