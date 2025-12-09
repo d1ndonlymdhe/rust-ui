@@ -169,8 +169,8 @@ pub fn get_draw_dim(
     dim: (Length, Length),
     parent_dim: (i32, i32),
     children: &Vec<Rc<RefCell<dyn Base>>>,
-
-    direction: &Direction,
+    direction: Direction,
+    border_width: i32,
 ) -> (i32, i32) {
     let (width, height) = dim;
     let draw_width = match width {
@@ -225,7 +225,7 @@ pub fn get_draw_dim(
         }
     };
 
-    (draw_width, draw_height)
+    (draw_width + border_width, draw_height + border_width)
 }
 
 pub fn tabbed_print(text: &str, depth: usize) {

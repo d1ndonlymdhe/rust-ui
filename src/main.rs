@@ -356,6 +356,7 @@ fn message_component(content: String, is_current_user: bool, idx: usize) -> Comp
                     Color::SLATEBLUE
                 })
                 .cross_align(Alignment::Start)
+                .border_width(10)
                 .main_align(Alignment::Center)
                 .dim((Length::FIT, Length::FIT))
                 .dbg_name(&format!("MSG {}", idx))

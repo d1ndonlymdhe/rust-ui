@@ -1,4 +1,9 @@
-use std::{cell::{Ref, RefCell}, collections::HashMap, rc::Rc, vec};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashMap,
+    rc::Rc,
+    vec,
+};
 
 use colored::Colorize;
 use raylib::{
@@ -7,7 +12,8 @@ use raylib::{
 };
 
 use crate::ui::common::{
-    AbsoluteDraw, Alignment, Base, Component, Direction, ID, KeyEvent, Length, MouseEvent, Position, generate_id, get_drawable_y_and_h, tabbed_print
+    AbsoluteDraw, Alignment, Base, Component, Direction, ID, KeyEvent, Length, MouseEvent,
+    Position, generate_id, get_drawable_y_and_h, tabbed_print,
 };
 
 pub struct Layout {
@@ -19,13 +25,15 @@ pub struct Layout {
     pub direction: Direction,
     // Padding (top, right, bottom, left)
     pub padding: (i32, i32, i32, i32),
+    pub border_width: i32,
+    pub border_color: Color,
     pub main_align: Alignment,
     pub cross_align: Alignment,
     pub gap: i32,
     pub dbg_name: ID,
     pub flex: f32,
     pub on_click: Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>,
-    pub on_key: Rc<RefCell<dyn FnMut(KeyEvent)-> bool>>,
+    pub on_key: Rc<RefCell<dyn FnMut(KeyEvent) -> bool>>,
     pub children_func: Option<Rc<RefCell<dyn Fn() -> Vec<Rc<RefCell<dyn Base>>>>>>,
     pub overflow: (bool, bool),
     pub scroll_offset: i32,
@@ -36,8 +44,8 @@ pub struct LayoutProps {
     layout: Layout,
 }
 
-impl Clone for LayoutProps{
- fn clone(&self) -> Self {
+impl Clone for LayoutProps {
+    fn clone(&self) -> Self {
         Self {
             layout: Layout {
                 children: self.layout.children.clone(),
@@ -58,11 +66,12 @@ impl Clone for LayoutProps{
                 scroll_offset: self.layout.scroll_offset,
                 position: self.layout.position,
                 on_key: self.layout.on_key.clone(),
+                border_width: self.layout.border_width,
+                border_color: self.layout.border_color,
             },
         }
     }
 }
-
 
 impl LayoutProps {
     pub fn new() -> Self {
@@ -72,7 +81,12 @@ impl LayoutProps {
                 dim: (Length::FILL, Length::FILL),
                 draw_dim: (0, 0),
                 pos: (0, 0),
-                bg_color: Color{r:0,b:0,g:0,a:0},
+                bg_color: Color {
+                    r: 0,
+                    b: 0,
+                    g: 0,
+                    a: 0,
+                },
                 direction: Direction::Row,
                 main_align: Alignment::Start,
                 cross_align: Alignment::Start,
@@ -86,6 +100,8 @@ impl LayoutProps {
                 scroll_offset: 0,
                 overflow: (false, true),
                 position: Position::Auto,
+                border_width: 0,
+                border_color: Color::BLACK,
             },
         }
     }
@@ -133,7 +149,7 @@ impl LayoutProps {
         self.layout.on_click = Rc::new(RefCell::new(f));
         self
     }
-    pub fn on_key(mut self,f: Box<dyn FnMut(KeyEvent) -> bool>) -> Self {
+    pub fn on_key(mut self, f: Box<dyn FnMut(KeyEvent) -> bool>) -> Self {
         self.layout.on_key = Rc::new(RefCell::new(f));
         self
     }
@@ -151,6 +167,14 @@ impl LayoutProps {
     }
     pub fn set_position(mut self, position: Position) -> Self {
         self.layout.position = position;
+        self
+    }
+    pub fn border_width(mut self, border_width: i32) -> Self {
+        self.layout.border_width = border_width;
+        self
+    }
+    pub fn border_color(mut self, border_color: Color) -> Self {
+        self.layout.border_color = border_color;
         self
     }
     pub fn build(self) -> Rc<RefCell<Layout>> {
@@ -174,6 +198,8 @@ impl LayoutProps {
             scroll_offset: layout.scroll_offset,
             position: layout.position,
             on_key: layout.on_key.clone(),
+            border_color: layout.border_color,
+            border_width: layout.border_width,
         }))
     }
     pub fn get_layout(self) -> Layout {
@@ -219,7 +245,7 @@ impl Layout {
 }
 
 impl Base for Layout {
-    fn get_paddings(&self) -> (i32,i32,i32,i32) {
+    fn get_paddings(&self) -> (i32, i32, i32, i32) {
         return self.padding;
     }
     fn set_pos(&mut self, pos: (i32, i32)) {
@@ -234,14 +260,33 @@ impl Base for Layout {
     fn draw(&self, draw_handle: &mut RaylibDrawHandle) -> Vec<AbsoluteDraw> {
         let visible_height = self.draw_dim.1;
         let start_y = self.pos.1;
+        let border_color = self.border_color;
+        let border_width = self.border_width;
         if visible_height > 0 {
-            draw_handle.draw_rectangle(
-                self.pos.0,
-                start_y,
-                self.draw_dim.0,
-                visible_height,
-                self.bg_color,
-            );
+            if border_width > 0 {
+                draw_handle.draw_rectangle_lines(
+                    self.pos.0,
+                    start_y,
+                    self.draw_dim.0,
+                    visible_height,
+                    border_color,
+                );
+                draw_handle.draw_rectangle(
+                    self.pos.0 - border_width,
+                    start_y - border_width,
+                    self.draw_dim.0 - (border_width*2),
+                    visible_height - (border_width * 2),
+                    self.bg_color,
+                );
+            } else {
+                draw_handle.draw_rectangle(
+                    self.pos.0,
+                    start_y,
+                    self.draw_dim.0,
+                    visible_height,
+                    self.bg_color,
+                );
+            }
         }
 
         let (auto_children, mut abs_children, sticky_children) = self.get_children_by_pos();
@@ -284,19 +329,19 @@ impl Base for Layout {
         self.children.clone()
     }
     fn set_raw_dim(&mut self, parent_dim: (i32, i32)) {
-        let (draw_width, draw_height) =
-            crate::ui::common::get_draw_dim(self.dim, parent_dim, &self.children, &self.direction);
+        let (draw_width, draw_height) = crate::ui::common::get_draw_dim(
+            self.dim,
+            parent_dim,
+            &self.children,
+            self.direction,
+            self.border_width,
+        );
         self.draw_dim = (draw_width, draw_height);
     }
     fn get_draw_dim(&self) -> (i32, i32) {
         self.draw_dim
     }
     fn measure_dimensions(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize {
-
-        if self.get_id() == "OVERLAY_HEADER_CONT" {
-            println!("HI!")
-        }
-
         let (auto_children, mut abs_children, sticky_children) = self.get_children_by_pos();
         abs_children.extend(sticky_children);
         // let auto_children = self.get_children();
@@ -309,7 +354,7 @@ impl Base for Layout {
         for child in auto_children.iter() {
             let mut child = child.borrow_mut();
             let flex: f32 = child.get_flex();
-            
+
             match self.direction {
                 Direction::Row => {
                     let allowed_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
@@ -317,8 +362,7 @@ impl Base for Layout {
                     let child_width = f32::floor(flex * (allowed_width as f32 / total_flex)) as i32;
                     let child_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
                     child.set_raw_dim((child_width, child_height));
-                    ret_id = child
-                        .measure_dimensions((child_width, child_height), ret_id + 1);
+                    ret_id = child.measure_dimensions((child_width, child_height), ret_id + 1);
                 }
                 Direction::Column => {
                     let allowed_height = self.draw_dim.1 - self.padding.1 - self.padding.3;
@@ -327,8 +371,7 @@ impl Base for Layout {
                         f32::floor(flex * (allowed_height as f32 / total_flex)) as i32;
                     let child_width = self.draw_dim.0 - self.padding.0 - self.padding.2;
                     child.set_raw_dim((child_width, child_height));
-                    ret_id = child
-                        .measure_dimensions((child_width, child_height), ret_id + 1);
+                    ret_id = child.measure_dimensions((child_width, child_height), ret_id + 1);
                 }
             }
         }
@@ -346,10 +389,8 @@ impl Base for Layout {
         ret_id
     }
     fn measure_positions(&mut self, passed_pos: (i32, i32)) {
-
-
-
-        self.pos = passed_pos;
+        let border_width = self.border_width;
+        self.pos = (passed_pos.0-border_width,passed_pos.1 - border_width);
         let mut padding_left = self.padding.0;
         let mut padding_top = self.padding.1;
 
@@ -447,9 +488,6 @@ impl Base for Layout {
             next_pos.0 += padding_left;
         }
         next_pos.1 += padding_top;
-        if self.get_id() == "ROOT_LAYOUT"{
-            println!("ROOT LAYOUT")
-        }
         for (idx, child) in auto_children.iter().enumerate() {
             let mut child = child.borrow_mut();
             child.measure_positions(next_pos);
@@ -546,7 +584,9 @@ impl Base for Layout {
                 self.draw_dim.1,
                 self.pos.0,
                 self.pos.1,
-                "███████".truecolor(self.bg_color.r, self.bg_color.g, self.bg_color.b).bold(),
+                "███████"
+                    .truecolor(self.bg_color.r, self.bg_color.g, self.bg_color.b)
+                    .bold(),
                 self.padding.0,
                 self.padding.1,
                 self.padding.2,

@@ -101,6 +101,17 @@ impl TextLayoutProps {
         self.layout = layout;
         self
     }
+    pub fn border_width(mut self, border_width: i32) -> Self {
+        let layout = self.layout.border_width(border_width);
+        self.layout = layout;
+        self
+    }
+    pub fn border_color(mut self, border_color: Color) -> Self {
+        let layout = self.layout.border_color(border_color);
+        self.layout = layout;
+        self
+    }
+    
     pub fn build(self) -> Rc<RefCell<TextLayout>> {
         let layout = self.layout;
         return Rc::new(RefCell::new(TextLayout {
@@ -224,7 +235,7 @@ impl Base for TextLayout{
                 // + layout.padding.2
         };
         let (mut draw_width, mut draw_height) =
-            crate::ui::common::get_draw_dim(layout.dim, parent_draw_dim, &layout.children, &layout.direction);
+            crate::ui::common::get_draw_dim(layout.dim, parent_draw_dim, &layout.children, layout.direction, layout.border_width);
 
         if self.wrap {
             let max_width = draw_width - layout.padding.0 - layout.padding.2;
