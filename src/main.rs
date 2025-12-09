@@ -216,7 +216,7 @@ impl ChatState {
         self.messages = self
             .messages
             .iter()
-            .filter(|msg| msg.receiver_id == id || msg.sender_id == id)
+            .filter(|msg| msg.receiver_id != id && msg.sender_id != id)
             .map(|msg| msg.clone())
             .collect::<Vec<_>>();
     }
