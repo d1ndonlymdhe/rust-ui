@@ -1,5 +1,7 @@
 use raylib::{
-    color::Color, ffi::KeyboardKey, prelude::{RaylibDraw, RaylibDrawHandle}
+    color::Color,
+    ffi::KeyboardKey,
+    prelude::{RaylibDraw, RaylibDrawHandle},
 };
 
 use crate::ui::common::*;
@@ -21,16 +23,12 @@ impl Root {
             child_mut.set_pos(self.pos);
             child_mut.set_raw_dim(self.draw_dim);
         }
-        let mut abs_draw = vec![];
         let child = self.child.borrow();
-        abs_draw = child.draw(draw_handle);
+        let mut abs_draw = child.draw(draw_handle);
         loop {
             let mut new_abs_draws = vec![];
             for draw_instruction in abs_draw.iter() {
-                let AbsoluteDraw {
-                    component_id,
-                } = draw_instruction;
-
+                let AbsoluteDraw { component_id } = draw_instruction;
                 let child = self.get_by_id(component_id);
                 if let Some(child) = child {
                     let child = child.borrow();
@@ -40,15 +38,11 @@ impl Root {
                             panic!("No auto children should exist here")
                         }
                         Position::Sticky(_, _) => {
-                            let more_abs_draw = child.draw(
-                                draw_handle,
-                            );
+                            let more_abs_draw = child.draw(draw_handle);
                             new_abs_draws.extend(more_abs_draw);
                         }
                         Position::Abs(_, _) => {
-                            let more_abs_draw = child.draw(
-                                draw_handle,
-                            );
+                            let more_abs_draw = child.draw(draw_handle);
                             new_abs_draws.extend(more_abs_draw);
                         }
                     }
@@ -63,8 +57,8 @@ impl Root {
     }
 
     pub fn handle_key_event(&self, key_event: KeyEvent) -> bool {
-        if key_event.ctrl_down && key_event.key.is_some_and(|v|{v==KeyboardKey::KEY_D}){
-                ("DEBUG DIMS");
+        if key_event.ctrl_down && key_event.key.is_some_and(|v| v == KeyboardKey::KEY_D) {
+            ("DEBUG DIMS");
             self.debug_dims(0);
         }
         if let Some(focused_id) = &self.focused_id {
@@ -126,8 +120,13 @@ impl Root {
     pub fn pass_2(&mut self) {
         self.child.borrow_mut().measure_positions(self.pos);
     }
-    pub fn pass_overflow(&mut self){
-        self.child.borrow_mut().measure_overflows((self.draw_dim), self.pos, &mut self.scroll_map, 0);
+    pub fn pass_overflow(&mut self) {
+        self.child.borrow_mut().measure_overflows(
+            (self.draw_dim),
+            self.pos,
+            &mut self.scroll_map,
+            0,
+        );
     }
     pub fn debug_dims(&self, depth: usize) {
         tabbed_print(
@@ -157,9 +156,7 @@ impl Root {
             // Now we can safely try to borrow mutably
             match self.child.try_borrow_mut() {
                 Ok(_) => Some(self.child.clone()),
-                Err(_) => {
-                    None
-                }
+                Err(_) => None,
             }
         } else {
             child.borrow().get_by_id(id)

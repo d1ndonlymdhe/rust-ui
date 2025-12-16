@@ -264,18 +264,20 @@ impl Base for Layout {
         let border_width = self.border_width;
         if visible_height > 0 {
             if border_width > 0 {
-                draw_handle.draw_rectangle_lines(
+                draw_handle.draw_rectangle(
                     self.pos.0,
                     start_y,
-                    self.draw_dim.0,
-                    visible_height,
+                    self.draw_dim.0 + border_width * 2,
+                    visible_height + border_width * 2,
                     border_color,
                 );
                 draw_handle.draw_rectangle(
-                    self.pos.0 - border_width,
-                    start_y - border_width,
-                    self.draw_dim.0 - (border_width*2),
-                    visible_height - (border_width * 2),
+                    self.pos.0 + border_width,
+                    start_y + border_width,
+                    self.draw_dim.0,
+                    visible_height,
+                    // self.draw_dim.0 - (border_width*2),
+                    // visible_height - (border_width * 2),
                     self.bg_color,
                 );
             } else {
@@ -390,7 +392,7 @@ impl Base for Layout {
     }
     fn measure_positions(&mut self, passed_pos: (i32, i32)) {
         let border_width = self.border_width;
-        self.pos = (passed_pos.0-border_width,passed_pos.1 - border_width);
+        self.pos = (passed_pos.0, passed_pos.1);
         let mut padding_left = self.padding.0;
         let mut padding_top = self.padding.1;
 
@@ -483,11 +485,11 @@ impl Base for Layout {
 
         let mut next_pos = self.pos;
         if self.direction == Direction::Column && self.cross_align == Alignment::Center {
-            next_pos.0 = self.pos.0 + cross_paddings[0];
+            next_pos.0 = self.pos.0 + cross_paddings[0] + border_width;
         } else {
-            next_pos.0 += padding_left;
+            next_pos.0 += padding_left + border_width;
         }
-        next_pos.1 += padding_top;
+        next_pos.1 += padding_top + border_width;
         for (idx, child) in auto_children.iter().enumerate() {
             let mut child = child.borrow_mut();
             child.measure_positions(next_pos);

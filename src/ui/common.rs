@@ -7,7 +7,7 @@ pub enum Length {
     FIT,
     FIXED(i32),
     FILL_PER(i32),
-    FIT_PER(i32)
+    FIT_PER(i32),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -32,11 +32,9 @@ pub enum ID {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Position {
     Auto,
-    Sticky(i32,i32),
-    Abs(i32,i32)
+    Sticky(i32, i32),
+    Abs(i32, i32),
 }
-
-
 
 pub fn get_drawable_y_and_h(
     container_y: i32,
@@ -78,10 +76,7 @@ impl AbsoluteDraw {
 
 pub trait Base {
     fn set_pos(&mut self, pos: (i32, i32));
-    fn draw(
-        &self,
-        draw_handle: &mut RaylibDrawHandle,
-    ) -> Vec<AbsoluteDraw>;
+    fn draw(&self, draw_handle: &mut RaylibDrawHandle) -> Vec<AbsoluteDraw>;
     fn get_mouse_event_handlers(&self, mouse_event: MouseEvent) -> Vec<String>;
     fn execute_on_click(&self, mouse_event: MouseEvent) -> bool {
         let f = self.get_on_click();
@@ -89,7 +84,7 @@ pub trait Base {
         f(mouse_event)
     }
     fn get_on_click(&self) -> Rc<RefCell<dyn FnMut(MouseEvent) -> bool>>;
-    fn get_paddings(&self) -> (i32,i32,i32,i32);
+    fn get_paddings(&self) -> (i32, i32, i32, i32);
     fn get_key_event_handlers(&self, key_event: KeyEvent) -> Vec<String>;
     fn get_scroll_event_handler(&self, scroll_event: ScrollEvent) -> Option<String> {
         let children = self.get_children();
@@ -130,14 +125,20 @@ pub trait Base {
     fn get_draw_pos(&self) -> (i32, i32);
     fn measure_dimensions(&mut self, parent_draw_dim: (i32, i32), id: usize) -> usize;
     fn measure_positions(&mut self, parent_pos: (i32, i32));
-    fn measure_overflows(&mut self, parent_draw_dim: (i32, i32), parent_pos: (i32, i32), scroll_map: &mut HashMap<String, i32>,y_offset: i32);
+    fn measure_overflows(
+        &mut self,
+        parent_draw_dim: (i32, i32),
+        parent_pos: (i32, i32),
+        scroll_map: &mut HashMap<String, i32>,
+        y_offset: i32,
+    );
     fn get_overflow(&self) -> (bool, bool);
     fn get_flex(&self) -> f32;
     fn debug_dims(&self, depth: usize);
     fn get_children(&self) -> Vec<Rc<RefCell<dyn Base>>> {
         Vec::new()
     }
-    
+
     fn get_id(&self) -> String;
     fn get_by_id(&self, id: &str) -> Option<Rc<RefCell<dyn Base>>>;
     fn is_focusable(&self) -> bool {
@@ -184,23 +185,23 @@ pub fn get_draw_dim(
         }
         Length::FIXED(l) => l,
         Length::FILL_PER(p) => (parent_dim.0 * p) / 100,
-        Length::FIT_PER(p) =>{
+        Length::FIT_PER(p) => {
             let iter = children.iter().map(|child| child.borrow().get_draw_dim().0);
             let fit_width = match direction {
                 Direction::Row => iter.sum(),
                 Direction::Column => iter.max().unwrap_or(0),
             };
-            (fit_width * p)/100
-        },
+            (fit_width * p) / 100
+        }
     };
 
     let draw_height = match height {
         Length::FILL => parent_dim.1,
         Length::FIT => {
-            let iter = children.iter().map(|child|{ 
+            let iter = children.iter().map(|child| {
                 let child = child.borrow();
                 let paddings = child.get_paddings();
-                let dims = child.get_draw_dim();    
+                let dims = child.get_draw_dim();
                 dims.1 + paddings.1 + paddings.3
             });
             match direction {
@@ -211,26 +212,29 @@ pub fn get_draw_dim(
         Length::FIXED(l) => l,
         Length::FILL_PER(p) => (parent_dim.1 * p) / 100,
         Length::FIT_PER(p) => {
-            let iter = children.iter().map(|child|{ 
+            let iter = children.iter().map(|child| {
                 let child = child.borrow();
                 let paddings = child.get_paddings();
-                let dims = child.get_draw_dim();    
+                let dims = child.get_draw_dim();
                 dims.1 + paddings.1 + paddings.3
             });
             let fit_height = match direction {
                 Direction::Row => iter.max().unwrap_or(0),
                 Direction::Column => iter.sum(),
             };
-            (fit_height * p)/100
+            (fit_height * p) / 100
         }
     };
-
-    (draw_width + border_width, draw_height + border_width)
+    // (draw_width,draw_height)
+    (
+        draw_width - border_width * 2,
+        draw_height - border_width * 2,
+    )
 }
 
 pub fn tabbed_print(text: &str, depth: usize) {
     let indent = "  ".repeat(depth);
-    println!("{}{}",indent,text);
+    println!("{}{}", indent, text);
 }
 
 pub fn generate_id() -> String {

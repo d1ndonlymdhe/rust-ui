@@ -290,7 +290,7 @@ fn users_component() -> Vec<Component> {
             let user_id = user.id.clone();
 
             Layout::get_row_builder()
-                .dim((Length::FILL_PER(80), Length::FIXED(40)))
+                .dim((Length::FILL, Length::FIXED(40)))
                 .gap(10)
                 .on_click(Box::new(move |_mouse_event: MouseEvent| {
                     CHAT_STATE.lock().unwrap().current_user_id = user_id.clone();
@@ -305,7 +305,7 @@ fn users_component() -> Vec<Component> {
                         } else {
                             Color::LIGHTGRAY
                         })
-                        .padding((10, 0, 10, 0))
+                        // .padding((10, 0, 10, 0))
                         .cross_align(Alignment::Start)
                         .main_align(Alignment::Center)
                         .flex(7.0)
@@ -356,7 +356,7 @@ fn message_component(content: String, is_current_user: bool, idx: usize) -> Comp
                     Color::SLATEBLUE
                 })
                 .cross_align(Alignment::Start)
-                .border_width(10)
+                .border_width(2)
                 .main_align(Alignment::Center)
                 .dim((Length::FIT, Length::FIT))
                 .dbg_name(&format!("MSG {}", idx))
@@ -481,10 +481,11 @@ fn left_sidebar_component() -> Component {
         .children(children)
         .dim((Length::FILL, Length::FILL))
         .cross_align(Alignment::Center)
+        .bg_color(Color::BISQUE)
         .padding((10, 5, 10, 5))
         .dbg_name("LEFT_SIDEBAR")
         .gap(5)
-        .flex(1.3)
+        .flex(1.0)
         .build()
 }
 
@@ -494,8 +495,9 @@ fn chat_area_component() -> Component {
         .dbg_name("CHAT_AREA")
         .children(vec![
             Layout::get_col_builder()
-                .bg_color(Color::BEIGE)
+                // .bg_color(Color::BEIGE)
                 .children(children)
+                .gap(2)
                 .build(),
         ])
         .flex(19f32)
@@ -506,7 +508,7 @@ fn chat_area_component() -> Component {
         .dim((Length::FILL, Length::FILL))
         .main_align(Alignment::Center)
         .overflow_y(false)
-        .flex(2.7)
+        .flex(2.0)
         .children(vec![messages, input_row])
         .build()
 }
@@ -546,7 +548,7 @@ fn delete_user_popup() -> Component {
     let button_builder = TextLayout::get_builder()
         .cross_align(Alignment::Center)
         .main_align(Alignment::Center)
-        .dim((Length::FIT_PER(120),Length::FIT_PER(120)))
+        .dim((Length::FIT_PER(120), Length::FIT_PER(120)))
         .padding((0, 0, 0, 0));
 
     let buttons = Layout::get_row_builder()
@@ -556,7 +558,7 @@ fn delete_user_popup() -> Component {
                 .clone()
                 .content("YES")
                 .bg_color(Color::GREEN)
-                .on_click(Box::new(move |_|{
+                .on_click(Box::new(move |_| {
                     let mut state = CHAT_STATE.lock().unwrap();
                     state.delete_user(&user_to_delete.id);
                     false
@@ -566,7 +568,7 @@ fn delete_user_popup() -> Component {
                 .clone()
                 .content("NO")
                 .bg_color(Color::RED)
-                .on_click(Box::new(|_|{
+                .on_click(Box::new(|_| {
                     let mut state = CHAT_STATE.lock().unwrap();
                     state.clear_user_to_delete();
                     false
