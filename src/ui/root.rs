@@ -3,15 +3,13 @@ use raylib::{
     ffi::{KeyboardKey, MouseButton},
     prelude::{RaylibDraw, RaylibDrawHandle},
 };
-
 use crate::{
     ui::{common::*},
 };
 use std::{cell::RefCell, collections::HashMap, rc::Rc, vec};
 
-pub struct Root {}
-
-impl Root {
+pub struct UIRoot {}
+impl UIRoot {
     pub fn start(builder: Box<dyn Fn() -> Component>, dim: (i32, i32), title: &str) {
         let (mut rl, thread) = raylib::init()
             .height(dim.1)
@@ -58,25 +56,25 @@ impl Root {
             };
 
             {
-                let a = Root::get_mouse_event_handlers(main_child.clone(), &mut focused_id, mouse_event);
+                let a = UIRoot::get_mouse_event_handlers(main_child.clone(), &mut focused_id, mouse_event);
 
                 let b = if key_event.ctrl_down || key_event.shift_down || key_event.key.is_some() {
-                    Root::handle_key_event(main_child.clone(),focused_id.clone(),key_event)
+                    UIRoot::handle_key_event(main_child.clone(),focused_id.clone(),key_event)
                 } else {
                     false
                 };
 
-                let c = Root::get_scroll_event_handler(main_child.clone(), &mut scroll_map, scroll_event);
+                let c = UIRoot::get_scroll_event_handler(main_child.clone(), &mut scroll_map, scroll_event);
                 if a || b || c {
                     should_rebuild_ui = true;
                 }
             }
             if should_rebuild_ui {
                 main_child = builder();
-                Root::measure_dimensions(main_child.clone(), dim);
-                Root::measure_positions(main_child.clone());
-                Root::measure_overflows(main_child.clone(), dim, &mut scroll_map);
-                Root::draw(&mut d, main_child.clone());
+                UIRoot::measure_dimensions(main_child.clone(), dim);
+                UIRoot::measure_positions(main_child.clone());
+                UIRoot::measure_overflows(main_child.clone(), dim, &mut scroll_map);
+                UIRoot::draw(&mut d, main_child.clone());
                 should_rebuild_ui = false;
             }
         }
@@ -93,7 +91,7 @@ impl Root {
             for draw_instruction in abs_draw.iter() {
                 let AbsoluteDraw { component_id } = draw_instruction;
                 // let child = root.get_by_id(component_id);
-                let child = Root::get_by_id(root_child.clone(),component_id);
+                let child = UIRoot::get_by_id(root_child.clone(),component_id);
                 if let Some(child) = child {
                     let child = child.borrow();
                     let child_pos = child.get_position();
@@ -126,10 +124,10 @@ impl Root {
         key_event: KeyEvent,
     ) -> bool {
         if key_event.ctrl_down && key_event.key.is_some_and(|v| v == KeyboardKey::KEY_D) {
-            Root::debug_dims(root_child.clone());
+            UIRoot::debug_dims(root_child.clone());
         }
         if let Some(focused_id) = root_focused_id {
-            if let Some(focused_child) = Root::get_by_id(root_child.clone(), &focused_id) {
+            if let Some(focused_child) = UIRoot::get_by_id(root_child.clone(), &focused_id) {
                 let focused_child = focused_child.borrow();
                 focused_child.execute_on_key(key_event);
                 return true;
@@ -148,7 +146,7 @@ impl Root {
         let mut focused_id = None;
 
         for child_id in hit_children.iter() {
-            let child = Root::get_by_id(root_child.clone(), &child_id);
+            let child = UIRoot::get_by_id(root_child.clone(), &child_id);
             if let Some(child) = child {
                 let child = child.borrow();
                 let propagate = child.execute_on_click(mouse_event);
@@ -199,7 +197,7 @@ impl Root {
             .borrow_mut()
             .measure_overflows(dim, (0, 0), scroll_map, 0);
     }
-    pub fn debug_dims(root_child: Component) {
+    fn debug_dims(root_child: Component) {
         tabbed_print(
             &format!(
                 "<root>",

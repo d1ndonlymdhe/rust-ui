@@ -13,7 +13,7 @@ use raylib::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::vec;
 use ui::common::{Length, MouseEvent};
-use ui::root::Root;
+use ui::root::UIRoot;
 
 use crate::ui::common::{Alignment, Component, def_key_handler};
 use crate::ui::layout::Layout;
@@ -31,7 +31,7 @@ fn main() {
     {
         CHAT_STATE.lock().unwrap().seed_messages();
     }
-    Root::start(Box::new(||{chat_layout()}), (1000,1000), "HI!");
+    UIRoot::start(Box::new(||{chat_layout()}), (1000,1000), "HI!");
 }
 
 #[derive(Clone)]
