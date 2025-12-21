@@ -428,7 +428,6 @@ fn chat_area_component() -> Component {
 }
 
 fn delete_user_popup() -> Component {
-    println!("Rendering popup");
     let user_to_delete = {
         let mut state = CHAT_STATE.lock().unwrap();
         let del_user_id = &state.show_delete_user_popup;
@@ -445,7 +444,7 @@ fn delete_user_popup() -> Component {
     };
 
     if user_to_delete.is_none() {
-        return Layout::get_row_builder().build();
+        return Layout::get_row_builder().flex(0.0).build();
     }
 
     let user_to_delete = user_to_delete.unwrap();
