@@ -13,10 +13,9 @@ use raylib::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::vec;
 use ui::common::{Length, MouseEvent};
-use ui::raw_text::RawText;
 use ui::root::Root;
 
-use crate::ui::common::{Alignment, Component, KeyEvent, ScrollEvent, def_key_handler};
+use crate::ui::common::{Alignment, Component, def_key_handler};
 use crate::ui::layout::Layout;
 use crate::ui::text_input::TextInput;
 use crate::ui::text_layout::TextLayout;
@@ -26,98 +25,13 @@ lazy_static! {
 }
 
 fn main() {
-    let (mut rl, thread) = raylib::init()
-        .size(1000, 1000)
-        .title("Rust UI Example")
-        .build();
-
-    let root = Root::new(
-        RawText::new("Loading", 20, (0, 0, 0, 0), Color::BLACK),
-        (1000, 1000),
-    );
     {
         CHAT_STATE.lock().unwrap().seed_users();
     }
     {
         CHAT_STATE.lock().unwrap().seed_messages();
     }
-
-    let binding = root.clone();
-    {
-        let chat_layout = chat_layout();
-        let mut mut_root = binding.borrow_mut();
-        mut_root.set_children(vec![chat_layout]);
-        mut_root.pass_1();
-        mut_root.pass_2();
-        mut_root.pass_overflow();
-        mut_root.debug_dims(0);
-    }
-    rl.set_target_fps(60);
-    let mut should_rebuild_ui = true;
-
-    while !rl.window_should_close() {
-        let mouse_pos = rl.get_mouse_position();
-        let left_mouse_pressed = rl.is_mouse_button_pressed(MouseButton::MOUSE_BUTTON_LEFT);
-
-        let key = rl.get_key_pressed();
-        let shift_down = rl.is_key_down(KeyboardKey::KEY_LEFT_SHIFT)
-            || rl.is_key_down(KeyboardKey::KEY_RIGHT_SHIFT);
-
-        let ctrl_down = rl.is_key_down(KeyboardKey::KEY_LEFT_CONTROL)
-            || rl.is_key_down(KeyboardKey::KEY_RIGHT_CONTROL);
-
-        let mouse_event = MouseEvent {
-            pos: (mouse_pos.x as i32, mouse_pos.y as i32),
-            left_button_down: left_mouse_pressed,
-        };
-
-        let mut d = rl.begin_drawing(&thread);
-        let wheel_move = d.get_mouse_wheel_move_v();
-        let scroll_y = wheel_move.y;
-
-        let scroll_event = ScrollEvent {
-            pos: (mouse_pos.x as i32, mouse_pos.y as i32),
-            delta: scroll_y as i32,
-        };
-
-        let key_event = KeyEvent {
-            key,
-            shift_down,
-            ctrl_down,
-        };
-
-        {
-            let binding = root.clone();
-            let mut root = binding.borrow_mut();
-
-            let a = root.get_mouse_event_handlers(mouse_event);
-
-            let b = if key_event.ctrl_down || key_event.shift_down || key_event.key.is_some() {
-                root.handle_key_event(key_event)
-            } else {
-                false
-            };
-
-            let c = root.get_scroll_event_handler(scroll_event);
-            if a || b || c {
-                should_rebuild_ui = true;
-            }
-        }
-        if should_rebuild_ui {
-            {
-                let chat_layout = chat_layout();
-                let mut mut_root = binding.borrow_mut();
-                mut_root.set_children(vec![chat_layout]);
-                mut_root.pass_1();
-                mut_root.pass_2();
-                mut_root.pass_overflow();
-            }
-            {
-                root.borrow_mut().draw(&mut d);
-            }
-            should_rebuild_ui = false;
-        }
-    }
+    Root::start(Box::new(||{chat_layout()}), (1000,1000), "HI!");
 }
 
 #[derive(Clone)]
